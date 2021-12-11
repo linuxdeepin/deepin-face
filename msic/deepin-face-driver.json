@@ -1,0 +1,6 @@
+{
+    "service": "com.deepin.face",
+    "path": "/com/deepin/face",
+    "interface": "com.deepin.face",
+    "type": 4
+}

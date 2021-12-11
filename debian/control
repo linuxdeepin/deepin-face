@@ -1,0 +1,43 @@
+Source: deepin-face
+Section: devel
+Priority: optional
+Maintainer: Deepin Sysdev <sysdev@deepin.com>
+Build-Depends: debhelper (>= 8.0.0),
+	pkg-config,
+	qt5-qmake,
+	qtbase5-dev,
+	libopencv-core-dev,
+	libopencv-highgui-dev,
+	libopencv-imgproc-dev,
+	libdframeworkdbus-dev,
+	libdtkcore-dev,
+	seetaface-boxes,
+	seetaface-landmarker,
+	seetaface-anti-spoofing-x,
+	seetaface-tracker,
+	seetaface-recognizer,
+	seetaface-quality-assessor,
+	seetaface-pose-estimation,
+	seetaface-authorize,
+	seetaface-tennis,
+	libdtkwidget-dev,
+	libdtkcore5-bin
+Standards-Version: 4.5.1
+Homepage: https://github.com/linuxdeepin/deepin-face
+
+Package: deepin-face
+Architecture: any
+Depends: ${shlibs:Depends},
+	  ${misc:Depends}, 
+	  libdframeworkdbus-dev,
+	  seetaface-boxes,
+	  seetaface-landmarker,
+	  seetaface-anti-spoofing-x,
+	  seetaface-tracker,
+	  seetaface-recognizer,
+	  seetaface-quality-assessor,
+	  seetaface-pose-estimation,
+	  seetaface-authorize,
+	  seetaface-tennis
+Description: Face recognition service 
+ deepin-face is a face recognition service implemented by the open source face recognition engine seetaface

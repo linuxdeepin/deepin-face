@@ -1,0 +1,6 @@
+*.o
+.qmake.stash
+moc*
+deepin-face.pro.user
+/build
+Makefile
