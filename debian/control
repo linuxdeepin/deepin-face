@@ -21,7 +21,8 @@ Build-Depends: debhelper (>= 8.0.0),
 	seetaface-authorize,
 	seetaface-tennis,
 	libdtkwidget-dev,
-	libdtkcore5-bin
+	libdtkcore5-bin,
+	qtmultimedia5-dev
 Standards-Version: 4.5.1
 Homepage: https://github.com/linuxdeepin/deepin-face
 

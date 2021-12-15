@@ -1,6 +1,8 @@
 #include "workmodule.h"
 #include "drivermanger.h"
 #include "modelmanger.h"
+
+#include <QCameraInfo>
 ErollThread::ErollThread(QSharedPointer<DriverManger> spDriver)
     :m_wpDriver(spDriver)
     ,m_spCapture(new cv::VideoCapture)
@@ -28,7 +30,16 @@ void ErollThread::run(){
         driverManger=m_wpDriver.lock();
     }
 
-    bool bOpen=m_spCapture->open(0);
+    QList<QCameraInfo> cameraInfo = QCameraInfo::availableCameras();
+    bool bOpen = false;
+    QList<QCameraInfo>::iterator iter=cameraInfo.begin();
+    while(iter != cameraInfo.end()){
+        bOpen = m_spCapture->open(iter->deviceName().toStdString());
+        if(bOpen){
+            break;
+        }
+        iter++;
+    }
     if(!bOpen){
         qDebug()<<"open camera fail";
         driverManger->processStatus(m_actionId,FaceEnrollException);
@@ -232,12 +243,23 @@ void VerifyThread::run(){
     }else{
         driverManger=m_wpDriver.lock();
     }
-    bool bOpen=m_spCapture->open(0);
+
+    QList<QCameraInfo> cameraInfo = QCameraInfo::availableCameras();
+    bool bOpen = false;
+    QList<QCameraInfo>::iterator iter=cameraInfo.begin();
+    while(iter != cameraInfo.end()){
+        bOpen = m_spCapture->open(iter->deviceName().toStdString());
+        if(bOpen){
+            break;
+        }
+        iter++;
+    }
     if(!bOpen){
         qDebug()<<"open camera fail";
-        driverManger->processStatus(m_actionId,FaceEnrollError);
+        driverManger->processStatus(m_actionId,FaceEnrollException);
         return;
     }
+
     bool bTrack=true;
     m_spCapture->set( cv::CAP_PROP_FRAME_WIDTH, 800 );
     m_spCapture->set( cv::CAP_PROP_FRAME_HEIGHT, 600 );
