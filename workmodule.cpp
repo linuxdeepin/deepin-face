@@ -3,6 +3,7 @@
 #include "modelmanger.h"
 
 #include <QCameraInfo>
+
 ErollThread::ErollThread(QSharedPointer<DriverManger> spDriver)
     :m_wpDriver(spDriver)
     ,m_spCapture(new cv::VideoCapture)
@@ -65,12 +66,7 @@ void ErollThread::run(){
             cv::cvtColor(mat, mat, cv::COLOR_RGBA2BGR);
         }
 
-        cv::cvtColor(mat, mat, cv::COLOR_RGB2BGR);
-        SeetaImageData image;
-        image.height = mat.rows;
-        image.width = mat.cols;
-        image.channels = mat.channels();
-        image.data = mat.data;
+        cv::cvtColor(mat, mat, cv::COLOR_BGR2RGB);
 
         if(m_bFirst){
             sendCapture(mat);
@@ -81,6 +77,14 @@ void ErollThread::run(){
                 sendCapture(mat);
             }
         }
+
+        cv::cvtColor(mat, mat, cv::COLOR_RGB2BGR);
+
+        SeetaImageData image;
+        image.height = mat.rows;
+        image.width = mat.cols;
+        image.channels = mat.channels();
+        image.data = mat.data;
 
         if(!ModelManger::getSingleInstanceModel().avaliable()){
             continue;
