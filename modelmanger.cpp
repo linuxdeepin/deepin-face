@@ -17,13 +17,13 @@ void ModelManger::load(){
     faceDetectorModel.append(modelPath + "face_detector.csta");
     faceDetectorModel.set_device(seeta::ModelSetting::CPU );
     faceDetectorModel.set_id(0);
-    this->m_spFaceDetector  = QSharedPointer<seeta::FaceDetector>(new seeta::FaceDetector(faceDetectorModel));
+    this->m_spFaceDetector = QSharedPointer<seeta::FaceDetector>(new seeta::FaceDetector(faceDetectorModel));
 
     seeta::ModelSetting faceLandMarkModel;
     faceLandMarkModel.append(modelPath + "face_landmarker_pts5.csta");
     faceLandMarkModel.set_device(seeta::ModelSetting::CPU );
     faceLandMarkModel.set_id(0);
-    this->m_spFaceLandmarker  =QSharedPointer<seeta::FaceLandmarker>(new seeta::FaceLandmarker(faceLandMarkModel));
+    this->m_spFaceLandmarker = QSharedPointer<seeta::FaceLandmarker>(new seeta::FaceLandmarker(faceLandMarkModel));
     faceLandMarkModel.clear();
 
     seeta::ModelSetting faceAntiSpooModel;
@@ -31,33 +31,33 @@ void ModelManger::load(){
     faceAntiSpooModel.append(modelPath + "fas_second.csta");
     faceAntiSpooModel.set_device( seeta::ModelSetting::CPU );
     faceAntiSpooModel.set_id(0);
-    this->m_spFaceAntiSpoof   =QSharedPointer<seeta::FaceAntiSpoofing>(new seeta::FaceAntiSpoofing(faceAntiSpooModel));
-    this->m_spFaceAntiSpoof->SetThreshold(0.3,0.8);
+    this->m_spFaceAntiSpoof = QSharedPointer<seeta::FaceAntiSpoofing>(new seeta::FaceAntiSpoofing(faceAntiSpooModel));
+    this->m_spFaceAntiSpoof->SetThreshold(float(0.3),float(0.8));
     faceAntiSpooModel.clear();
 
     seeta::ModelSetting faceRecognizerModel;
     faceRecognizerModel.append(modelPath + "face_recognizer.csta");
     faceRecognizerModel.set_device(seeta::ModelSetting::CPU );
     faceRecognizerModel.set_id(0);
-    this->m_spFaceRecognizer  =QSharedPointer<seeta::FaceRecognizer>(new seeta::FaceRecognizer(faceRecognizerModel));
+    this->m_spFaceRecognizer = QSharedPointer<seeta::FaceRecognizer>(new seeta::FaceRecognizer(faceRecognizerModel));
     faceRecognizerModel.clear();
 
     seeta::ModelSetting faceTrackerModel;
     faceTrackerModel.append(modelPath + "face_detector.csta");
     faceTrackerModel.set_device(seeta::ModelSetting::CPU );
     faceTrackerModel.set_id(0);
-    this->m_spFaceTracker =QSharedPointer<seeta::FaceTracker>(new seeta::FaceTracker(faceTrackerModel,1920,1080));
+    this->m_spFaceTracker = QSharedPointer<seeta::FaceTracker>(new seeta::FaceTracker(faceTrackerModel,1920,1080));
     this->m_spFaceTracker->SetVideoSize(800,600);
     this->m_spFaceTracker->SetMinFaceSize(100);
-    this->m_spFaceTracker->SetThreshold(0.8);
+    this->m_spFaceTracker->SetThreshold(float(0.8));
 
     seeta::ModelSetting facePoseModel;
     facePoseModel.append(modelPath + "pose_estimation.csta");
     facePoseModel.set_device(SEETA_DEVICE_CPU);
     facePoseModel.set_id(0);
-    this->m_spQualityOfPose   =QSharedPointer<seeta::QualityOfPoseEx>(new seeta::QualityOfPoseEx(facePoseModel));
+    this->m_spQualityOfPose = QSharedPointer<seeta::QualityOfPoseEx>(new seeta::QualityOfPoseEx(facePoseModel));
 
-    this->m_spQualityAssessor =QSharedPointer<seeta::QualityAssessor>(new seeta::QualityAssessor);
+    this->m_spQualityAssessor = QSharedPointer<seeta::QualityAssessor>(new seeta::QualityAssessor);
     this->m_spQualityAssessor->add_rule(seeta::INTEGRITY);
     this->m_spQualityAssessor->add_rule(seeta::RESOLUTION);
     this->m_spQualityAssessor->add_rule(seeta::BRIGHTNESS);

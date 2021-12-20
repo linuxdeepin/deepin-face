@@ -13,10 +13,10 @@ ErollThread::ErollThread(QSharedPointer<DriverManger> spDriver)
 }
 
 void ErollThread::Start(QString actionId, int socket){
-    this->m_actionId=actionId;
-    this->m_bRun=true;
-    this->m_fileSocket=socket;
-    this->m_bFirst=true;
+    this->m_actionId = actionId;
+    this->m_bRun = true;
+    this->m_fileSocket = socket;
+    this->m_bFirst = true;
     this->start();
 }
 
@@ -28,12 +28,12 @@ void ErollThread::run(){
     if(m_wpDriver.isNull()){
         return;
     }else{
-        driverManger=m_wpDriver.lock();
+        driverManger = m_wpDriver.lock();
     }
 
     QList<QCameraInfo> cameraInfo = QCameraInfo::availableCameras();
     bool bOpen = false;
-    QList<QCameraInfo>::iterator iter=cameraInfo.begin();
+    QList<QCameraInfo>::iterator iter = cameraInfo.begin();
     while(iter != cameraInfo.end()){
         bOpen = m_spCapture->open(iter->deviceName().toStdString());
         if(bOpen){
@@ -131,7 +131,7 @@ void ErollThread::run(){
                 continue;
             }
 
-            auto status= ModelManger::getSingleInstanceModel().getFaceAntiSpoofing()->Predict(image,faces.data[0].pos, points.data());
+            auto status = ModelManger::getSingleInstanceModel().getFaceAntiSpoofing()->Predict(image,faces.data[0].pos, points.data());
             if( status == seeta::FaceAntiSpoofing::SPOOF)
             {
                 driverManger->processStatus(m_actionId,FaceEnrollNotRealHuman);
@@ -142,9 +142,9 @@ void ErollThread::run(){
             }
 
             seeta::ImageData cropface = ModelManger::getSingleInstanceModel().getFaceRecognizer()->CropFaceV2(image,  points.data());
-            int size=ModelManger::getSingleInstanceModel().getFaceRecognizer()->GetExtractFeatureSize();
-            float* features=static_cast<float*>(malloc(sizeof(float)*size));
-            bool bFound=ModelManger::getSingleInstanceModel().getFaceRecognizer()->ExtractCroppedFace(cropface, features);
+            int size = ModelManger::getSingleInstanceModel().getFaceRecognizer()->GetExtractFeatureSize();
+            float* features = static_cast<float*>(malloc(sizeof(float)*static_cast<unsigned long>(size)));
+            bool bFound = ModelManger::getSingleInstanceModel().getFaceRecognizer()->ExtractCroppedFace(cropface, features);
             if (bFound){
                 qDebug()<<"ExtractCroppedFace ok"<<features;
                 bTrack=false;
@@ -158,7 +158,7 @@ void ErollThread::run(){
 
 void ErollThread::Stop(){
 
-    this->m_bRun=false;
+    this->m_bRun = false;
     close(m_fileSocket);
 }
 
@@ -166,46 +166,41 @@ void ErollThread::sendCapture(cv::Mat mat){
 
     qDebug()<<"sendCapture";
 
-    QImage image((const unsigned char *)mat.data, mat.cols,mat.rows,mat.step, QImage::Format_RGB888);
+    QImage image(reinterpret_cast<const unsigned char *>(mat.data), mat.cols,mat.rows, static_cast<int>(mat.step), QImage::Format_RGB888);
     uchar* buf;
-    unsigned long size=0;
+    unsigned long size = 0;
     if(m_bFirst){
-        size=sizeof(uchar)*(7*4+image.byteCount());
-        buf=static_cast<uchar*>(malloc(size));
-        qint32* myBuf= (qint32*)buf;
-        myBuf[0]=0;
-        myBuf[1]=0;
-        myBuf[2]=image.depth();
-        myBuf[3]=mat.channels();
-        myBuf[4]=image.width();
-        myBuf[5]=image.height();
-        myBuf[6]=image.byteCount();
-        memcpy(&buf[7*4],mat.data,myBuf[6]);
+        size = sizeof(uchar)*(5*sizeof (int32_t)+static_cast<unsigned long>(image.sizeInBytes()));
+        buf = static_cast<uchar*>(malloc(size));
+        qint32* myBuf = reinterpret_cast<qint32*>(buf);
+        myBuf[0] = 0;
+        myBuf[1] = 0;
+        myBuf[2] = image.width();
+        myBuf[3] = image.height();
+        myBuf[4] = static_cast<qint32>(image.sizeInBytes());
+
+        memcpy(&buf[5 * sizeof(int32_t)],mat.data,static_cast<unsigned long>(myBuf[4]));
     }
     else {
-        size=sizeof(uchar)*(5*4+image.byteCount());
-        buf=static_cast<uchar*>(malloc(size));
+        size = sizeof(uchar)*(sizeof (int32_t)+static_cast<unsigned long>(image.sizeInBytes()));
+        buf = static_cast<uchar*>(malloc(size));
 
-        qint32* myBuf=(qint32*)buf;
+        qint32* myBuf = reinterpret_cast<qint32*>(buf);
+        myBuf[0] = static_cast<qint32>(image.sizeInBytes());
 
-        myBuf[0]=image.depth();
-        myBuf[1]=mat.channels();
-        myBuf[2]=image.width();
-        myBuf[3]=image.height();
-        myBuf[4]=image.byteCount();
-        memcpy(&buf[5*4],mat.data,myBuf[4]);
+        memcpy(&buf[1 * sizeof(int32_t)],mat.data,static_cast<unsigned long>(myBuf[0]));
     }
 
-    int countSize=size;
+    unsigned long countSize = size;
     qDebug()<<"total size :"<<size;
     while(countSize>0&&m_bRun){
-        int sendSize=write(m_fileSocket,&buf[size-countSize],countSize);
-        if(sendSize<0){
+        long sendSize = write(m_fileSocket,&buf[size-countSize],static_cast<size_t>(countSize));
+        if(sendSize < 0){
             qDebug()<<"send size"<<sendSize;
             continue;
         }
         qDebug()<<"send size :"<<sendSize;
-        countSize-=sendSize;
+        countSize -= static_cast<unsigned long>(sendSize);
         usleep(1);
     }
     free(buf);
@@ -223,16 +218,16 @@ VerifyThread::VerifyThread(QSharedPointer<DriverManger> spDriver)
 
 void VerifyThread::Start(QString actionId, QVector<float*> charas){
 
-    this->m_actionId=actionId;
-    this->m_bRun=true;
+    this->m_actionId = actionId;
+    this->m_bRun = true;
     for(int i=0;i<m_charaDatas.size();i++){
-        if(m_charaDatas[i]!=nullptr){
+        if(m_charaDatas[i] != nullptr){
             free(m_charaDatas[i]);
         }
     }
     this->m_charaDatas.clear();
     qDebug()<<"charas size"<<charas.size();
-    this->m_charaDatas=charas;
+    this->m_charaDatas = charas;
 
     this->start();
 }
@@ -245,12 +240,12 @@ void VerifyThread::run(){
     if(m_wpDriver.isNull()){
         return;
     }else{
-        driverManger=m_wpDriver.lock();
+        driverManger = m_wpDriver.lock();
     }
 
     QList<QCameraInfo> cameraInfo = QCameraInfo::availableCameras();
     bool bOpen = false;
-    QList<QCameraInfo>::iterator iter=cameraInfo.begin();
+    QList<QCameraInfo>::iterator iter = cameraInfo.begin();
     while(iter != cameraInfo.end()){
         bOpen = m_spCapture->open(iter->deviceName().toStdString());
         if(bOpen){
@@ -264,13 +259,13 @@ void VerifyThread::run(){
         return;
     }
 
-    bool bTrack=true;
+    bool bTrack = true;
     m_spCapture->set( cv::CAP_PROP_FRAME_WIDTH, 800 );
     m_spCapture->set( cv::CAP_PROP_FRAME_HEIGHT, 600 );
     cv::Mat mat;
 
     while(m_bRun){
-        bool bRead=m_spCapture->read(mat);
+        bool bRead = m_spCapture->read(mat);
         if(!bRead){
             driverManger->processStatus(m_actionId,FaceVerifyException);
             return;
@@ -289,8 +284,8 @@ void VerifyThread::run(){
         }
 
         ModelManger::getSingleInstanceModel().setFaceTrackSize(image.width,image.height);
-        auto faces= ModelManger::getSingleInstanceModel().getFaceTracker()->Track(image);
-        if(faces.size==0){
+        auto faces = ModelManger::getSingleInstanceModel().getFaceTracker()->Track(image);
+        if(faces.size == 0){
             driverManger->processStatus(m_actionId,FaceVerifyNoFace);
         }else if(faces.size>1)
         {
@@ -300,7 +295,7 @@ void VerifyThread::run(){
         {
             qDebug()<<"faces :"<<faces.size;
 
-            auto points =  ModelManger::getSingleInstanceModel().getFaceLandmarker()->mark(image,faces.data[0].pos);
+            auto points = ModelManger::getSingleInstanceModel().getFaceLandmarker()->mark(image,faces.data[0].pos);
             ModelManger::getSingleInstanceModel().getQualityAssessor()->feed(image, faces.data[0].pos, points.data(), 5);
 
             seeta::QualityResult quality = ModelManger::getSingleInstanceModel().getQualityAssessor()->query(seeta::BRIGHTNESS);
@@ -309,33 +304,33 @@ void VerifyThread::run(){
                 ModelManger::getSingleInstanceModel().getFaceTracker()->Reset();
                 continue;
             }
-            quality= ModelManger::getSingleInstanceModel().getQualityAssessor()->query(seeta::RESOLUTION);
+            quality = ModelManger::getSingleInstanceModel().getQualityAssessor()->query(seeta::RESOLUTION);
             if(quality.level<seeta::MEDIUM){
                 driverManger->processStatus(m_actionId,FaceVerifyFaceNotClear);
                 ModelManger::getSingleInstanceModel().getFaceTracker()->Reset();
                 continue;
             }
-            quality= ModelManger::getSingleInstanceModel().getQualityAssessor()->query(seeta::CLARITY);
+            quality = ModelManger::getSingleInstanceModel().getQualityAssessor()->query(seeta::CLARITY);
             if(quality.level<seeta::MEDIUM){
                 driverManger->processStatus(m_actionId,FaceVerifyFaceNotClear);
                 ModelManger::getSingleInstanceModel().getFaceTracker()->Reset();
                 continue;
             }
 
-            quality= ModelManger::getSingleInstanceModel().getQualityAssessor()->query(seeta::INTEGRITY);
+            quality = ModelManger::getSingleInstanceModel().getQualityAssessor()->query(seeta::INTEGRITY);
             if(quality.level<seeta::MEDIUM){
                 driverManger->processStatus(m_actionId,FaceVerifyFaceTooBig);
                 ModelManger::getSingleInstanceModel().getFaceTracker()->Reset();
                 continue;
             }
-            quality= ModelManger::getSingleInstanceModel().getQualityAssessor()->query(seeta::POSE_EX);
+            quality = ModelManger::getSingleInstanceModel().getQualityAssessor()->query(seeta::POSE_EX);
             if(quality.level<seeta::MEDIUM){
                 driverManger->processStatus(m_actionId,FaceVerifyFaceNotCenter);
                 ModelManger::getSingleInstanceModel().getFaceTracker()->Reset();
                 continue;
             }
 
-            auto status= ModelManger::getSingleInstanceModel().getFaceAntiSpoofing()->Predict(image,faces.data[0].pos, points.data());
+            auto status = ModelManger::getSingleInstanceModel().getFaceAntiSpoofing()->Predict(image,faces.data[0].pos, points.data());
             if( status == seeta::FaceAntiSpoofing::SPOOF)
             {
                 driverManger->processStatus(m_actionId,FaceVerifyNotRealHuman);
@@ -348,17 +343,17 @@ void VerifyThread::run(){
             }
 
             seeta::ImageData cropface = ModelManger::getSingleInstanceModel().getFaceRecognizer()->CropFaceV2(image,  points.data());
-            int size=ModelManger::getSingleInstanceModel().getFaceRecognizer()->GetExtractFeatureSize();
-            float* features=static_cast<float*>(malloc(sizeof(float)*size));
-            bool bFound=ModelManger::getSingleInstanceModel().getFaceRecognizer()->ExtractCroppedFace(cropface, features);
+            int size = ModelManger::getSingleInstanceModel().getFaceRecognizer()->GetExtractFeatureSize();
+            float* features = static_cast<float*>(malloc(sizeof(float)*static_cast<unsigned long>(size)));
+            bool bFound = ModelManger::getSingleInstanceModel().getFaceRecognizer()->ExtractCroppedFace(cropface, features);
             if (bFound){
                 qDebug()<<"ExtractCroppedFace ok"<<features;
                 for(auto iter:m_charaDatas){
                     float score=ModelManger::getSingleInstanceModel().getFaceRecognizer()->CalculateSimilarity(features,iter);
                     qDebug()<<"score :"<<score;
-                    if(score>0.62){
+                    if(score>float(0.62)){
                         driverManger->processStatus(m_actionId,FaceVerifySuccess);
-                        bTrack=false;
+                        bTrack = false;
                         break;
                     }
                 }
@@ -374,13 +369,13 @@ void VerifyThread::run(){
 void VerifyThread::Stop(){
 
     for(int i=0;i<m_charaDatas.size();i++){
-        if(m_charaDatas[i]!=nullptr){
+        if(m_charaDatas[i] != nullptr){
             free(m_charaDatas[i]);
         }
     }
     this->m_charaDatas.clear();
 
-    this->m_bRun=false;
+    this->m_bRun = false;
 
 }
 

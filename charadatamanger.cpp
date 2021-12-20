@@ -9,12 +9,12 @@ CharaDataManger::CharaDataManger()
 
 bool CharaDataManger::insertCharaDate(QString chara, float* data, const int& size){
 
-    float* faceData=static_cast<float*>(malloc(sizeof(float)*size));
+    float* faceData = static_cast<float*>(malloc(sizeof(float)*static_cast<unsigned long>(size)));
     for(int i=0;i<size;i++){
-        faceData[i]=data[i];
+        faceData[i] = data[i];
     }
     qDebug() << "insertCharaDate chara"<<chara<<" data"<<data<<" size"<<size;
-    m_charaData[chara]=qMakePair(size,faceData);
+    m_charaData[chara] = qMakePair(size,faceData);
 
     saveCharaData();
 
@@ -23,10 +23,10 @@ bool CharaDataManger::insertCharaDate(QString chara, float* data, const int& siz
 
 bool CharaDataManger::deleteCharaData(QString chara){
 
-    if(m_charaData.count(chara)==0){
+    if(m_charaData.count(chara) == 0){
         return false;
     }
-    if(m_charaData[chara].second!=nullptr){
+    if(m_charaData[chara].second != nullptr){
         qDebug()<<"free charaData[chara].second";
         free(m_charaData[chara].second);
     }
@@ -60,7 +60,7 @@ void CharaDataManger::loadCharaData(){
     for(auto chara:rootKeys){
         qDebug()<<"chara :"<<chara;
         QJsonValue rootJsonValue = rootObject.value(chara);
-        QJsonObject charaObject= rootJsonValue.toObject();
+        QJsonObject charaObject = rootJsonValue.toObject();
         int faceSize=0;
         if (charaObject.contains("faceCharaSize")){
             faceSize=charaObject.value("faceCharaSize").toInt();
@@ -72,7 +72,7 @@ void CharaDataManger::loadCharaData(){
             jsonArray=charaObject.value("faceChara").toArray();
         }
 
-        float* faceChara=static_cast<float*>(malloc(sizeof(float)*faceSize));
+        float* faceChara=static_cast<float*>(malloc(sizeof(float)*static_cast<unsigned long>(faceSize)));
         for(int i=0;i<jsonArray.size();i++){
             faceChara[i]=jsonArray[i].toString().toFloat();
         }
@@ -85,14 +85,13 @@ void CharaDataManger::saveCharaData(){
     qDebug() << "saveCharaData charaData" <<m_charaData.size();
     QJsonDocument rootDoc;
     QJsonObject rootObject;
-    QMap<QString,QPair<int,float*>>::iterator iter=m_charaData.begin();
+    QMap<QString,QPair<int,float*>>::iterator iter = m_charaData.begin();
     while(iter!=m_charaData.end()){
-
         QJsonObject charaObject;
         charaObject.insert("faceCharaSize",iter.value().first);
         QJsonArray arr;
         for (int i=0;i<iter.value().first;i++) {
-            arr.push_back(QString("%1").arg(iter.value().second[i]));
+            arr.push_back(QString("%1").arg(static_cast<double>(iter.value().second[i])));
         }
         charaObject.insert("faceChara",arr);
         rootObject.insert(iter.key(),charaObject);
@@ -118,7 +117,7 @@ void CharaDataManger::saveCharaData(){
 QStringList CharaDataManger::getCharaList(){
 
     QStringList ret;
-    QMap<QString,QPair<int,float*>>::iterator iter=m_charaData.begin();
+    QMap<QString,QPair<int,float*>>::iterator iter = m_charaData.begin();
     while(iter!=m_charaData.end()){
         ret.push_back(iter.key());
         iter++;
@@ -132,8 +131,8 @@ QVector<float*> CharaDataManger::getCharaData(QStringList charas){
     QVector<float*> ret;
     float* tempChara;
     for(auto iter:charas){
-        if(m_charaData.count(iter)!=0){
-            tempChara=static_cast<float*>(malloc(sizeof(float)*m_charaData[iter].first));
+        if(m_charaData.count(iter) != 0){
+            tempChara=static_cast<float*>(malloc(sizeof(float)*static_cast<unsigned long>(m_charaData[iter].first)));
             for(int i=0;i<m_charaData[iter].first;i++){
                 tempChara[i]=m_charaData[iter].second[i];
             }
@@ -144,6 +143,7 @@ QVector<float*> CharaDataManger::getCharaData(QStringList charas){
     return ret;
 
 }
+
 QMap<QString,QPair<int,float*>>& CharaDataManger::getCharaDataMap(){
 
     return m_charaData;
