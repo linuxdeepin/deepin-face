@@ -39,6 +39,7 @@ Depends: ${shlibs:Depends},
 	  seetaface-quality-assessor,
 	  seetaface-pose-estimation,
 	  seetaface-authorize,
-	  seetaface-tennis
+	  seetaface-tennis,
+	  seetaface-models
 Description: Face recognition service 
  deepin-face is a face recognition service implemented by the open source face recognition engine seetaface
