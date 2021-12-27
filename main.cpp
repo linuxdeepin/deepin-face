@@ -2,11 +2,11 @@
 #include "dbusfaceservice.h"
 #include "definehead.h"
 
-#include <QCoreApplication>
 #include <DLog>
+#include <QCoreApplication>
 
 DCORE_USE_NAMESPACE
-static QString logPath="/var/log/deepin-face.log";
+static QString logPath = "/var/log/deepin-face.log";
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
@@ -17,9 +17,12 @@ int main(int argc, char *argv[])
 
     DbusFaceService w;
     QDBusConnection connection = QDBusConnection::systemBus();
-    if (!connection.registerService(SERVERNAME) ||
-        !connection.registerObject(SERVERPATH,&w,QDBusConnection::ExportAllSlots|QDBusConnection::ExportScriptableProperties|
-                                   QDBusConnection::ExportAllSignals)) {
+    if (!connection.registerService(SERVERNAME)
+        || !connection.registerObject(SERVERPATH,
+                                      &w,
+                                      QDBusConnection::ExportAllSlots
+                                          | QDBusConnection::ExportScriptableProperties
+                                          | QDBusConnection::ExportAllSignals)) {
         qDebug() << "dbus service already registered!";
         return -1;
     }

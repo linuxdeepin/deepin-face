@@ -1,15 +1,14 @@
 #ifndef DBUSFACESERVICE_H
 #define DBUSFACESERVICE_H
 
-#include "drivermanger.h"
 #include "definehead.h"
+#include "drivermanger.h"
 
-#include <QtDBus/QtDBus>
 #include <QDebug>
 #include <QSharedPointer>
+#include <QtDBus/QtDBus>
 
-
-class DbusFaceService:public QObject,public QDBusContext
+class DbusFaceService : public QObject, public QDBusContext
 {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", SERVERINTERFACE)
@@ -30,17 +29,18 @@ public:
     qint32 getCharaType() const;
 
 public Q_SLOTS:
-     QDBusUnixFileDescriptor EnrollStart(QString chara, qint32 charaType, QString actionId);
-     void EnrollStop(QString actionId);
-     QDBusUnixFileDescriptor VerifyStart(QStringList charas, QString actionId);
-     void VerifyStop(QString actionId);
-     void Delete(QString chara);
+    QDBusUnixFileDescriptor EnrollStart(QString chara, qint32 charaType, QString actionId);
+    void EnrollStop(QString actionId);
+    QDBusUnixFileDescriptor VerifyStart(QStringList charas, QString actionId);
+    void VerifyStop(QString actionId);
+    void Delete(QString chara);
 
 protected Q_SLOTS:
-     void exitApp();
+    void exitApp();
+
 private:
-     QSharedPointer<DriverManger>   m_spDriverManger;
-     QTimer*                        m_spTimer;
+    QSharedPointer<DriverManger> m_spDriverManger;
+    QTimer *m_spTimer;
 };
 
 #endif // DBUSFACESERVICE_H

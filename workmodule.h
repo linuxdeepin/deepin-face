@@ -3,21 +3,19 @@
 
 #include "seeta/Common/CStruct.h"
 
-#include <QThread>
 #include <memory>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <unistd.h>
 #include <QDebug>
 #include <QImage>
-#include <unistd.h>
 #include <QPixmap>
-
+#include <QThread>
 
 class DriverManger;
 class ErollThread : public QThread
 {
-
 public:
     ErollThread(QSharedPointer<DriverManger> spDriver);
     void Stop();
@@ -28,32 +26,30 @@ protected:
     void sendCapture(cv::Mat mat);
 
 private:
-    QWeakPointer<DriverManger>          m_wpDriver;
-    QSharedPointer<cv::VideoCapture>    m_spCapture;
-    QString                             m_actionId;
-    bool                                m_bRun;
-    int                                 m_fileSocket;
-    bool                                m_bFirst;
+    QWeakPointer<DriverManger> m_wpDriver;
+    QSharedPointer<cv::VideoCapture> m_spCapture;
+    QString m_actionId;
+    bool m_bRun;
+    int m_fileSocket;
+    bool m_bFirst;
 };
 
 class VerifyThread : public QThread
 {
-
 public:
     VerifyThread(QSharedPointer<DriverManger> spDriver);
     void Stop();
-    void Start(QString m_actionId, QVector<float*> charas);
+    void Start(QString m_actionId, QVector<float *> charas);
 
 protected:
     void run();
 
 private:
-    QWeakPointer<DriverManger>          m_wpDriver;
-    QSharedPointer<cv::VideoCapture>    m_spCapture;
-    QString                             m_actionId;
-    bool                                m_bRun;
-    QVector<float*>                     m_charaDatas;
+    QWeakPointer<DriverManger> m_wpDriver;
+    QSharedPointer<cv::VideoCapture> m_spCapture;
+    QString m_actionId;
+    bool m_bRun;
+    QVector<float *> m_charaDatas;
 };
-
 
 #endif // WORKMODULE_H

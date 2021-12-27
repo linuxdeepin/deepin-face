@@ -2,123 +2,119 @@
 #include "definehead.h"
 
 CharaDataManger::CharaDataManger()
-    :m_charaFilePath(CHARAFILEPATH)
+    : m_charaFilePath(CHARAFILEPATH)
+    , m_spUadpInterface(new QDBusInterface("com.deepin.daemon.Uadp",
+                                           "/com/deepin/daemon/Uadp",
+                                           "com.deepin.daemon.Uadp",
+                                           QDBusConnection::systemBus()))
 {
     m_charaData.clear();
 }
 
-bool CharaDataManger::insertCharaDate(QString chara, float* data, const int& size){
-
-    float* faceData = static_cast<float*>(malloc(sizeof(float)*static_cast<unsigned long>(size)));
-    for(int i=0;i<size;i++){
+bool CharaDataManger::insertCharaDate(QString chara, float *data, const int &size)
+{
+    float *faceData = static_cast<float *>(malloc(sizeof(float) * static_cast<unsigned long>(size)));
+    for (int i = 0; i < size; i++) {
         faceData[i] = data[i];
     }
-    qDebug() << "insertCharaDate chara"<<chara<<" data"<<data<<" size"<<size;
-    m_charaData[chara] = qMakePair(size,faceData);
+    qDebug() << "insertCharaDate chara" << chara << " data" << data << " size" << size;
+    m_charaData[chara] = qMakePair(size, faceData);
 
-    saveCharaData();
-
-    return true;
+    return saveCharaData();
 }
 
-bool CharaDataManger::deleteCharaData(QString chara){
-
-    if(m_charaData.count(chara) == 0){
+bool CharaDataManger::deleteCharaData(QString chara)
+{
+    if (m_charaData.count(chara) == 0) {
         return false;
     }
-    if(m_charaData[chara].second != nullptr){
-        qDebug()<<"free charaData[chara].second";
+    if (m_charaData[chara].second != nullptr) {
+        qDebug() << "free charaData[chara].second";
         free(m_charaData[chara].second);
     }
     m_charaData.remove(chara);
 
-    saveCharaData();
-
-    return true;
+    return saveCharaData();
 }
 
-void CharaDataManger::loadCharaData(){
+void CharaDataManger::loadCharaData()
+{
+    QByteArray dataArray;
+    if (uadpAvailable()) {
+        dataArray = getCharaFromUadp();
+    } else {
+        dataArray = getCharaFromFile();
+    }
 
-    QFile file(m_charaFilePath);
-    if (!file.open(QIODevice::Text | QIODevice::ReadWrite)) {
-        file.close();
+    if (dataArray.size() == 0) {
         return;
     }
-    QByteArray array = file.readAll();
-    file.close();
-    if(array.isEmpty()){
-        return;
-    }
+
     QJsonParseError jsonParseError;
-    QJsonDocument jsonDocument(QJsonDocument::fromJson(array, &jsonParseError));
-    if(QJsonParseError::NoError != jsonParseError.error){
-       qDebug() << QString("JsonParseError: %1").arg(jsonParseError.errorString());
-       return;
+    QJsonDocument jsonDocument(QJsonDocument::fromJson(dataArray, &jsonParseError));
+    if (QJsonParseError::NoError != jsonParseError.error) {
+        qDebug() << QString("JsonParseError: %1").arg(jsonParseError.errorString());
+        return;
     }
     QJsonObject rootObject = jsonDocument.object();
     QStringList rootKeys = rootObject.keys();
-    for(auto chara:rootKeys){
-        qDebug()<<"chara :"<<chara;
+    for (auto chara : rootKeys) {
+        qDebug() << "chara :" << chara;
         QJsonValue rootJsonValue = rootObject.value(chara);
         QJsonObject charaObject = rootJsonValue.toObject();
-        int faceSize=0;
-        if (charaObject.contains("faceCharaSize")){
-            faceSize=charaObject.value("faceCharaSize").toInt();
-            qDebug()<<"faceCharaSize :"<<faceSize;
+        int faceSize = 0;
+        if (charaObject.contains("faceCharaSize")) {
+            faceSize = charaObject.value("faceCharaSize").toInt();
+            qDebug() << "faceCharaSize :" << faceSize;
         }
         QJsonObject obj;
         QJsonArray jsonArray;
-        if (charaObject.contains("faceChara")){
-            jsonArray=charaObject.value("faceChara").toArray();
+        if (charaObject.contains("faceChara")) {
+            jsonArray = charaObject.value("faceChara").toArray();
         }
 
-        float* faceChara=static_cast<float*>(malloc(sizeof(float)*static_cast<unsigned long>(faceSize)));
-        for(int i=0;i<jsonArray.size();i++){
-            faceChara[i]=jsonArray[i].toString().toFloat();
+        float *faceChara = static_cast<float *>(
+            malloc(sizeof(float) * static_cast<unsigned long>(faceSize)));
+        for (int i = 0; i < jsonArray.size(); i++) {
+            faceChara[i] = jsonArray[i].toString().toFloat();
         }
-        m_charaData[chara]=QPair<int,float*>(faceSize,faceChara);
+        m_charaData[chara] = QPair<int, float *>(faceSize, faceChara);
     }
 }
 
-void CharaDataManger::saveCharaData(){
+bool CharaDataManger::saveCharaData()
+{
+    qDebug() << "saveCharaData charaData" << m_charaData.size();
 
-    qDebug() << "saveCharaData charaData" <<m_charaData.size();
     QJsonDocument rootDoc;
     QJsonObject rootObject;
-    QMap<QString,QPair<int,float*>>::iterator iter = m_charaData.begin();
-    while(iter!=m_charaData.end()){
+    QMap<QString, QPair<int, float *>>::iterator iter = m_charaData.begin();
+    while (iter != m_charaData.end()) {
         QJsonObject charaObject;
-        charaObject.insert("faceCharaSize",iter.value().first);
+        charaObject.insert("faceCharaSize", iter.value().first);
         QJsonArray arr;
-        for (int i=0;i<iter.value().first;i++) {
+        for (int i = 0; i < iter.value().first; i++) {
             arr.push_back(QString("%1").arg(static_cast<double>(iter.value().second[i])));
         }
-        charaObject.insert("faceChara",arr);
-        rootObject.insert(iter.key(),charaObject);
+        charaObject.insert("faceChara", arr);
+        rootObject.insert(iter.key(), charaObject);
         iter++;
     }
     rootDoc.setObject(rootObject);
-    QByteArray fileText = rootDoc.toJson(QJsonDocument::Indented);   //标准JSON格式
+    QByteArray dataArray = rootDoc.toJson(QJsonDocument::Indented); //标准JSON格式
 
-    QFileInfo fileInfo(m_charaFilePath);
-    QDir dir(fileInfo.dir());
-    if(!dir.exists()){
-          dir.mkdir(fileInfo.dir().path());
+    if (uadpAvailable()) {
+        return setCharaToUadp(dataArray);
+    } else {
+        return setCharaDataToFile(dataArray);
     }
-
-    QFile file(m_charaFilePath);
-    if (file.open(QIODevice::Text | QIODevice::WriteOnly | QIODevice::Truncate)){
-        file.write(fileText);
-        file.close();
-    } 
-
 }
 
-QStringList CharaDataManger::getCharaList(){
-
+QStringList CharaDataManger::getCharaList()
+{
     QStringList ret;
-    QMap<QString,QPair<int,float*>>::iterator iter = m_charaData.begin();
-    while(iter!=m_charaData.end()){
+    QMap<QString, QPair<int, float *>>::iterator iter = m_charaData.begin();
+    while (iter != m_charaData.end()) {
         ret.push_back(iter.key());
         iter++;
     }
@@ -126,25 +122,112 @@ QStringList CharaDataManger::getCharaList(){
     return ret;
 }
 
-QVector<float*> CharaDataManger::getCharaData(QStringList charas){
-
-    QVector<float*> ret;
-    float* tempChara;
-    for(auto iter:charas){
-        if(m_charaData.count(iter) != 0){
-            tempChara=static_cast<float*>(malloc(sizeof(float)*static_cast<unsigned long>(m_charaData[iter].first)));
-            for(int i=0;i<m_charaData[iter].first;i++){
-                tempChara[i]=m_charaData[iter].second[i];
+QVector<float *> CharaDataManger::getCharaData(QStringList charas)
+{
+    QVector<float *> ret;
+    float *tempChara;
+    for (auto iter : charas) {
+        if (m_charaData.count(iter) != 0) {
+            tempChara = static_cast<float *>(
+                malloc(sizeof(float) * static_cast<unsigned long>(m_charaData[iter].first)));
+            for (int i = 0; i < m_charaData[iter].first; i++) {
+                tempChara[i] = m_charaData[iter].second[i];
             }
             ret.push_back(tempChara);
         }
     }
 
     return ret;
-
 }
 
-QMap<QString,QPair<int,float*>>& CharaDataManger::getCharaDataMap(){
-
+QMap<QString, QPair<int, float *>> &CharaDataManger::getCharaDataMap()
+{
     return m_charaData;
+}
+
+bool CharaDataManger::setCharaDataToFile(QByteArray& dataArray)
+{
+    qDebug() << "set chara to file";
+
+    QFileInfo fileInfo(m_charaFilePath);
+    QDir dir(fileInfo.dir());
+    if (!dir.exists()) {
+        if (!dir.mkdir(fileInfo.dir().path())) {
+            return false;
+        }
+    }
+
+    QFile file(m_charaFilePath);
+    if (file.open(QIODevice::Text | QIODevice::WriteOnly | QIODevice::Truncate)) {
+        file.write(dataArray);
+        file.close();
+        return true;
+    }
+
+    return false;
+}
+
+QByteArray CharaDataManger::getCharaFromFile()
+{
+    qDebug() << "get chara from file";
+
+    QByteArray dataArray;
+    QFile file(m_charaFilePath);
+    if (!file.open(QIODevice::Text | QIODevice::ReadWrite)) {
+        file.close();
+        return dataArray;
+    }
+    dataArray = file.readAll();
+    file.close();
+
+    return dataArray;
+}
+
+bool CharaDataManger::uadpAvailable()
+{
+    qDebug() << "get uadp available";
+
+    QDBusMessage msg = m_spUadpInterface->call("Available");
+    if (msg.type() == QDBusMessage::ErrorMessage) {
+        qDebug() << msg.errorMessage();
+        return false;
+    }
+
+    if (msg.arguments().empty()) {
+        return false;
+    }
+
+    qDebug() << "uadp available is" << msg.arguments()[0].toBool();
+
+    return msg.arguments()[0].toBool();
+}
+
+bool CharaDataManger::setCharaToUadp(QByteArray& dataArray)
+{
+    qDebug() << "save chara to uadp";
+
+    QDBusMessage msg = m_spUadpInterface->call("Set", "face", dataArray);
+    if (msg.type() == QDBusMessage::ErrorMessage) {
+        qDebug() << msg.errorMessage();
+        return false;
+    }
+
+    return true;
+}
+
+QByteArray CharaDataManger::getCharaFromUadp()
+{
+    QByteArray dataArray;
+    QDBusMessage msg = m_spUadpInterface->call("Get", "face");
+    if (msg.type() == QDBusMessage::ErrorMessage) {
+        qDebug() << msg.errorMessage();
+
+        return dataArray;
+    }
+
+    if (msg.arguments().empty()) {
+        return dataArray;
+    }
+
+    return msg.arguments()[0].toByteArray();
 }

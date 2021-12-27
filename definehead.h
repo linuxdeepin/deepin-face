@@ -4,17 +4,13 @@
 #define SERVERNAME "com.deepin.face"
 #define SERVERPATH "/com/deepin/face"
 #define SERVERINTERFACE "com.deepin.face"
-#define EMPTYCHARATYPE  0
-#define FACECHARATYPE    4
-#define CHARAFILEPATH   "/var/lib/deepin-face/charaInfo"
+#define EMPTYCHARATYPE 0
+#define FACECHARATYPE 4
+#define CHARAFILEPATH "/var/lib/deepin-face/charaInfo"
 
-enum ActionType{
-    Enroll,
-    Verify
-};
+enum ActionType { Enroll, Verify };
 
-
-enum EnrollStatus{
+enum EnrollStatus {
     FaceEnrollSuccess,
     FaceEnrollNotRealHuman,
     FaceEnrollFaceNotCenter,
@@ -30,7 +26,7 @@ enum EnrollStatus{
     FaceEnrollException
 };
 
-enum VerifyStatus{
+enum VerifyStatus {
     FaceVerifySuccess,
     FaceVerifyNotRealHuman,
     FaceVerifyFaceNotCenter,

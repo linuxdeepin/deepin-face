@@ -1,33 +1,44 @@
 #ifndef CHARADATAMANGER_H
 #define CHARADATAMANGER_H
 
-#include <QObject>
-#include <QMap>
-#include <memory>
+
+#include <utility>
+#include <QDBusInterface>
+#include <QDebug>
+#include <QDir>
+#include <QFile>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QJsonArray>
-#include <QDebug>
-#include <utility>
-#include <QFile>
-#include <QDir>
+#include <QMap>
+#include <QObject>
+#include <QSharedPointer>
+
+#include <memory>
 
 class CharaDataManger
 {
 public:
     CharaDataManger();
     void loadCharaData();
-    bool insertCharaDate(QString chara, float* data, const int& size);
+    bool insertCharaDate(QString chara, float *data, const int &size);
     bool deleteCharaData(QString chara);
     QStringList getCharaList();
-    QVector<float*> getCharaData(QStringList charas);
-    QMap<QString,QPair<int,float*>>& getCharaDataMap();
-private:
-    void saveCharaData();
+    QVector<float *> getCharaData(QStringList charas);
+    QMap<QString, QPair<int, float *>> &getCharaDataMap();
 
 private:
-     QMap<QString,QPair<int,float*>> m_charaData;
-     const QString                   m_charaFilePath;
+    bool saveCharaData();
+    bool setCharaDataToFile(QByteArray& dataArray);
+    QByteArray getCharaFromFile();
+    bool uadpAvailable();
+    bool setCharaToUadp(QByteArray& dataArray);
+    QByteArray getCharaFromUadp();
+
+private:
+    QMap<QString, QPair<int, float *>> m_charaData;
+    const QString m_charaFilePath;
+    QSharedPointer<QDBusInterface> m_spUadpInterface;
 };
 
 #endif // CHARADATAMANGER_H
