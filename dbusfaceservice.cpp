@@ -116,5 +116,8 @@ void DbusFaceService::exitApp()
 {
     qDebug() << "idle time out exit app";
 
+    QDBusConnection connection = QDBusConnection::systemBus();
+    connection.unregisterService(SERVERNAME);
+
     QCoreApplication::quit();
 }
