@@ -40,7 +40,7 @@ void ModelManger::load()
     faceAntiSpooModel.clear();
 
     seeta::ModelSetting faceRecognizerModel;
-    faceRecognizerModel.append(modelPath + "face_recognizer.csta");
+    faceRecognizerModel.append(modelPath + "face_recognizer_light.csta");
     faceRecognizerModel.set_device(seeta::ModelSetting::CPU);
     faceRecognizerModel.set_id(0);
     this->m_spFaceRecognizer = QSharedPointer<seeta::FaceRecognizer>(

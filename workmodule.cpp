@@ -383,7 +383,7 @@ void VerifyThread::run()
                                       .getFaceRecognizer()
                                       ->CalculateSimilarity(features, iter);
                     qDebug() << "score :" << score;
-                    if (score > float(0.62)) {
+                    if (score > float(FACETlIGHTHRESHOLD)) {
                         driverManger->processStatus(m_actionId, FaceVerifySuccess);
                         bTrack = false;
                         break;
