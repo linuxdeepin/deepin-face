@@ -8,7 +8,8 @@ ErollThread::ErollThread(QSharedPointer<DriverManger> spDriver)
     : m_wpDriver(spDriver)
     , m_spCapture(new cv::VideoCapture)
     , m_bRun(false)
-{}
+{
+}
 
 void ErollThread::Start(QString actionId, int socket)
 {
@@ -152,8 +153,7 @@ void ErollThread::run()
             seeta::ImageData cropface = ModelManger::getSingleInstanceModel()
                                             .getFaceRecognizer()
                                             ->CropFaceV2(image, points.data());
-            int size
-                = ModelManger::getSingleInstanceModel().getFaceRecognizer()->GetExtractFeatureSize();
+            int size = ModelManger::getSingleInstanceModel().getFaceRecognizer()->GetExtractFeatureSize();
             float *features = static_cast<float *>(
                 malloc(sizeof(float) * static_cast<unsigned long>(size)));
             bool bFound = ModelManger::getSingleInstanceModel()
@@ -229,7 +229,8 @@ VerifyThread::VerifyThread(QSharedPointer<DriverManger> spDriver)
     : m_wpDriver(spDriver)
     , m_spCapture(new cv::VideoCapture)
     , m_bRun(false)
-{}
+{
+}
 
 void VerifyThread::Start(QString actionId, QVector<float *> charas)
 {
@@ -369,8 +370,7 @@ void VerifyThread::run()
             seeta::ImageData cropface = ModelManger::getSingleInstanceModel()
                                             .getFaceRecognizer()
                                             ->CropFaceV2(image, points.data());
-            int size
-                = ModelManger::getSingleInstanceModel().getFaceRecognizer()->GetExtractFeatureSize();
+            int size = ModelManger::getSingleInstanceModel().getFaceRecognizer()->GetExtractFeatureSize();
             float *features = static_cast<float *>(
                 malloc(sizeof(float) * static_cast<unsigned long>(size)));
             bool bFound = ModelManger::getSingleInstanceModel()

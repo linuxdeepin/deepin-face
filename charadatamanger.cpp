@@ -2,8 +2,7 @@
 #include "definehead.h"
 
 CharaDataManger::CharaDataManger()
-    : m_charaFilePath(CHARAFILEPATH)
-    , m_spUadpInterface(new QDBusInterface("com.deepin.daemon.Uadp",
+    : m_spUadpInterface(new QDBusInterface("com.deepin.daemon.Uadp",
                                            "/com/deepin/daemon/Uadp",
                                            "com.deepin.daemon.Uadp",
                                            QDBusConnection::systemBus()))
@@ -39,12 +38,7 @@ bool CharaDataManger::deleteCharaData(QString chara)
 
 void CharaDataManger::loadCharaData()
 {
-    QByteArray dataArray;
-    if (uadpAvailable()) {
-        dataArray = getCharaFromUadp();
-    } else {
-        dataArray = getCharaFromFile();
-    }
+    QByteArray dataArray = getCharaFromUadp();
 
     if (dataArray.size() == 0) {
         return;
@@ -74,7 +68,7 @@ void CharaDataManger::loadCharaData()
         }
 
         float *faceChara = static_cast<float *>(
-            malloc(sizeof(float) * static_cast<unsigned long>(faceSize)));
+                               malloc(sizeof(float) * static_cast<unsigned long>(faceSize)));
         for (int i = 0; i < jsonArray.size(); i++) {
             faceChara[i] = jsonArray[i].toString().toFloat();
         }
@@ -103,11 +97,7 @@ bool CharaDataManger::saveCharaData()
     rootDoc.setObject(rootObject);
     QByteArray dataArray = rootDoc.toJson(QJsonDocument::Indented); //标准JSON格式
 
-    if (uadpAvailable()) {
-        return setCharaToUadp(dataArray);
-    } else {
-        return setCharaDataToFile(dataArray);
-    }
+    return setCharaToUadp(dataArray);
 }
 
 QStringList CharaDataManger::getCharaList()
@@ -129,7 +119,7 @@ QVector<float *> CharaDataManger::getCharaData(QStringList charas)
     for (auto iter : charas) {
         if (m_charaData.count(iter) != 0) {
             tempChara = static_cast<float *>(
-                malloc(sizeof(float) * static_cast<unsigned long>(m_charaData[iter].first)));
+                            malloc(sizeof(float) * static_cast<unsigned long>(m_charaData[iter].first)));
             for (int i = 0; i < m_charaData[iter].first; i++) {
                 tempChara[i] = m_charaData[iter].second[i];
             }
@@ -145,64 +135,7 @@ QMap<QString, QPair<int, float *>> &CharaDataManger::getCharaDataMap()
     return m_charaData;
 }
 
-bool CharaDataManger::setCharaDataToFile(QByteArray& dataArray)
-{
-    qDebug() << "set chara to file";
-
-    QFileInfo fileInfo(m_charaFilePath);
-    QDir dir(fileInfo.dir());
-    if (!dir.exists()) {
-        if (!dir.mkdir(fileInfo.dir().path())) {
-            return false;
-        }
-    }
-
-    QFile file(m_charaFilePath);
-    if (file.open(QIODevice::Text | QIODevice::WriteOnly | QIODevice::Truncate)) {
-        file.write(dataArray);
-        file.close();
-        return true;
-    }
-
-    return false;
-}
-
-QByteArray CharaDataManger::getCharaFromFile()
-{
-    qDebug() << "get chara from file";
-
-    QByteArray dataArray;
-    QFile file(m_charaFilePath);
-    if (!file.open(QIODevice::Text | QIODevice::ReadWrite)) {
-        file.close();
-        return dataArray;
-    }
-    dataArray = file.readAll();
-    file.close();
-
-    return dataArray;
-}
-
-bool CharaDataManger::uadpAvailable()
-{
-    qDebug() << "get uadp available";
-
-    QDBusMessage msg = m_spUadpInterface->call("Available");
-    if (msg.type() == QDBusMessage::ErrorMessage) {
-        qDebug() << msg.errorMessage();
-        return false;
-    }
-
-    if (msg.arguments().empty()) {
-        return false;
-    }
-
-    qDebug() << "uadp available is" << msg.arguments()[0].toBool();
-
-    return msg.arguments()[0].toBool();
-}
-
-bool CharaDataManger::setCharaToUadp(QByteArray& dataArray)
+bool CharaDataManger::setCharaToUadp(QByteArray &dataArray)
 {
     qDebug() << "save chara to uadp";
 

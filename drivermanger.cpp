@@ -5,7 +5,8 @@
 
 DriverManger::DriverManger()
     : m_spCharaDataManger(new CharaDataManger)
-{}
+{
+}
 void DriverManger::init()
 {
     this->m_spFileWatch = QSharedPointer<QFileSystemWatcher>(new QFileSystemWatcher(this));

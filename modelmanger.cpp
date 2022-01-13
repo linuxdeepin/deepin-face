@@ -4,7 +4,8 @@
 static std::string modelPath = "/usr/share/seetaface-models/";
 ModelManger::ModelManger()
     : m_bAvaliable(false)
-{}
+{
+}
 
 ModelManger &ModelManger::getSingleInstanceModel()
 {

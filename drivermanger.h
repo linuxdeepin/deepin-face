@@ -19,8 +19,7 @@
 
 #include <memory>
 
-struct ActionInfo
-{
+struct ActionInfo {
     QString chara; // DA生成特征值
     qint32 status;
     ActionType actionType;
@@ -28,8 +27,7 @@ struct ActionInfo
     int size;
 };
 
-struct ErrMsgInfo
-{
+struct ErrMsgInfo {
     QDBusError::ErrorType errType;
     QString msg;
 };

@@ -1,7 +1,6 @@
 #ifndef CHARADATAMANGER_H
 #define CHARADATAMANGER_H
 
-
 #include <utility>
 #include <QDBusInterface>
 #include <QDebug>
@@ -29,15 +28,11 @@ public:
 
 private:
     bool saveCharaData();
-    bool setCharaDataToFile(QByteArray& dataArray);
-    QByteArray getCharaFromFile();
-    bool uadpAvailable();
-    bool setCharaToUadp(QByteArray& dataArray);
+    bool setCharaToUadp(QByteArray &dataArray);
     QByteArray getCharaFromUadp();
 
 private:
     QMap<QString, QPair<int, float *>> m_charaData;
-    const QString m_charaFilePath;
     QSharedPointer<QDBusInterface> m_spUadpInterface;
 };
 

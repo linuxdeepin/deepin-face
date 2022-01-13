@@ -6,11 +6,13 @@
 #define SERVERINTERFACE "com.deepin.face"
 #define EMPTYCHARATYPE 0
 #define FACECHARATYPE 4
-#define CHARAFILEPATH "/var/lib/deepin-face/charaInfo"
 // 轻量级人脸识别模型阈值
 #define FACETlIGHTHRESHOLD 0.55
 
-enum ActionType { Enroll, Verify };
+enum ActionType {
+    Enroll,
+    Verify
+};
 
 enum EnrollStatus {
     FaceEnrollSuccess,
