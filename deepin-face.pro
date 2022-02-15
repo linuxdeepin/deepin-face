@@ -2,7 +2,6 @@ QT += gui dbus dtkcore multimedia
 
 CONFIG += c++11 link_pkgconfig
 CONFIG -= app_bundle
-PKGCONFIG += dframeworkdbus
 TARGET = deepin-face
 TEMPLATE = app
 # The following define makes your compiler emit warnings if you use

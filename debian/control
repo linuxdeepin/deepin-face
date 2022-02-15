@@ -9,7 +9,6 @@ Build-Depends: debhelper (>= 8.0.0),
 	libopencv-core-dev,
 	libopencv-highgui-dev,
 	libopencv-imgproc-dev,
-	libdframeworkdbus-dev,
 	libdtkcore-dev,
 	seetaface-boxes,
 	seetaface-landmarker,
@@ -29,8 +28,7 @@ Homepage: https://github.com/linuxdeepin/deepin-face
 Package: deepin-face
 Architecture: any
 Depends: ${shlibs:Depends},
-	  ${misc:Depends}, 
-	  libdframeworkdbus-dev,
+	  ${misc:Depends},
 	  seetaface-boxes,
 	  seetaface-landmarker,
 	  seetaface-anti-spoofing-x,
