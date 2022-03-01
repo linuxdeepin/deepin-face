@@ -15,6 +15,12 @@ DEFINES += QT_DEPRECATED_WARNINGS
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
+# 增加安全编译参数
+QMAKE_CFLAGS += -fstack-protector-all
+QMAKE_CXXFLAGS += -fstack-protector-all
+QMAKE_LFLAGS += -z relro -z now -z noexecstack -pie
+
+
 SOURCES += \
         main.cpp \
     dbusfaceservice.cpp \
