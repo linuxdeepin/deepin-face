@@ -4,9 +4,9 @@
 #include "seeta/Common/CStruct.h"
 
 #include <memory>
-#include <opencv4/core/core.hpp>
-#include <opencv4/highgui/highgui.hpp>
-#include <opencv4/imgproc/imgproc.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include <unistd.h>
 #include <QDebug>
 #include <QImage>
