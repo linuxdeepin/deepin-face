@@ -43,7 +43,7 @@ HEADERS += \
     definehead.h
 
 
-INCLUDEPATH += /usr/include/opencv2 \
+INCLUDEPATH += /usr/include/opencv4 \
                /usr/include/c++/8
 
 LIBS += -L/usr/lib/auto -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_videoio -lopencv_imgcodecs \
