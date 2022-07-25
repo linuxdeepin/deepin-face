@@ -1,3 +1,10 @@
+deepin-face (2.0.1) unstable; urgency=medium
+
+  [ TagBuilder ]
+  * fix: 修复无法录入人脸数据的问题(Bug: 141827)(Influence: 人脸服务录入等功能正常)
+
+ -- caixiangrong <caixiangrong@uniontech.com>  Mon, 25 Jul 2022 11:16:02 +0800
+
 deepin-face (2.0.0.0) unstable; urgency=medium
 
   * release 2.0.0.0
