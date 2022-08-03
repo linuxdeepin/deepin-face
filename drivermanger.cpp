@@ -135,8 +135,9 @@ void DriverManger::verifyStop(QString actionId, ErrMsgInfo &errMsgInfo)
     }
 
     m_bClaim = false;
-    ModelManger::getSingleInstanceModel().unLoad();
+    // 线程结束后才释放资源
     m_spVerifyThread->Stop();
+    ModelManger::getSingleInstanceModel().unLoad();
     m_actionMap.remove(actionId);
 }
 
