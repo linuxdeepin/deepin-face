@@ -13,6 +13,10 @@
 #include <QPixmap>
 #include <QThread>
 
+QT_BEGIN_NAMESPACE
+class QMutex;
+QT_END_NAMESPACE
+
 class DriverManger;
 class ErollThread : public QThread
 {
@@ -34,6 +38,7 @@ private:
     bool m_bFirst;
 };
 
+
 class VerifyThread : public QThread
 {
 public:
@@ -50,6 +55,7 @@ private:
     QString m_actionId;
     bool m_bRun;
     QVector<float *> m_charaDatas;
+    QSharedPointer<QMutex> m_mutex;
 };
 
 #endif // WORKMODULE_H

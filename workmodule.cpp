@@ -3,6 +3,8 @@
 #include "modelmanger.h"
 
 #include <QCameraInfo>
+#include <QMutex>
+#include <QMutexLocker>
 
 ErollThread::ErollThread(QSharedPointer<DriverManger> spDriver)
     : m_wpDriver(spDriver)
@@ -229,6 +231,7 @@ VerifyThread::VerifyThread(QSharedPointer<DriverManger> spDriver)
     : m_wpDriver(spDriver)
     , m_spCapture(new cv::VideoCapture)
     , m_bRun(false)
+    , m_mutex(new QMutex)
 {
 }
 
@@ -251,7 +254,7 @@ void VerifyThread::Start(QString actionId, QVector<float *> charas)
 void VerifyThread::run()
 {
     qDebug() << "Verify run";
-
+    QMutexLocker locker(m_mutex.get());
     QSharedPointer<DriverManger> driverManger;
     if (m_wpDriver.isNull()) {
         return;
@@ -396,14 +399,16 @@ void VerifyThread::run()
     m_spCapture->release();
 }
 
+// 等待线程结束后返回
 void VerifyThread::Stop()
 {
+    this->m_bRun = false;
+
+    QMutexLocker locker(m_mutex.get());
     for (int i = 0; i < m_charaDatas.size(); i++) {
         if (m_charaDatas[i] != nullptr) {
             free(m_charaDatas[i]);
         }
     }
     this->m_charaDatas.clear();
-
-    this->m_bRun = false;
 }
