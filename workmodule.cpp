@@ -37,7 +37,15 @@ void ErollThread::run()
     bool bOpen = false;
     QList<QCameraInfo>::iterator iter = cameraInfo.begin();
     while (iter != cameraInfo.end()) {
-        bOpen = m_spCapture->open(iter->deviceName().toStdString());
+        int index = 0;
+        while (index < 3) {
+            bOpen = m_spCapture->open(iter->deviceName().toStdString());
+            if (bOpen) {
+                break;
+            }
+            index++;
+        }
+
         if (bOpen) {
             break;
         }
@@ -266,7 +274,15 @@ void VerifyThread::run()
     bool bOpen = false;
     QList<QCameraInfo>::iterator iter = cameraInfo.begin();
     while (iter != cameraInfo.end()) {
-        bOpen = m_spCapture->open(iter->deviceName().toStdString());
+        int index = 0;
+        while (index < 3) {
+            bOpen = m_spCapture->open(iter->deviceName().toStdString());
+            if (bOpen) {
+                break;
+            }
+            index++;
+        }
+
         if (bOpen) {
             break;
         }
