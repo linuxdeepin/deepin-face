@@ -1,0 +1,49 @@
+# deepin-face
+
+生物特征的人脸数据录入、验证与数据管理
+
+### 依赖
+
+请查看“debian/control”文件中提供的“Depends”。
+
+### 编译依赖
+
+请查看“debian/control”文件中提供的“Build-Depends”。
+
+## 安装
+
+### 构建过程
+
+1. 确保已经安装了所有的编译依赖
+
+2. 构建
+```
+$ cd dde-control-center
+$ mkdir Build
+$ cd Build
+$ qmake ..
+$ make
+```
+
+3. 安装
+```
+$ sudo make install
+```
+
+## 帮助
+
+- [官方论坛](https://bbs.deepin.org/) 
+- [开发者中心](https://github.com/linuxdeepin/developer-center) 
+- [Wiki](https://wiki.deepin.org/)
+- [项目地址](https://github.com/linuxdeepin/deepin-face) 
+
+## 贡献指南
+
+我们鼓励您报告问题并做出更改
+
+* [Contribution guide for developers](https://github.com/linuxdeepin/developer-center/wiki/Contribution-Guidelines-for-Developers-en). (English)
+* [开发者代码贡献指南](https://github.com/linuxdeepin/developer-center/wiki/Contribution-Guidelines-for-Developers) (中文)
+
+## 开源许可证
+
+deepin-face在 [LGPL-3.0-or-later](LICENSE)下发布。
