@@ -18,7 +18,7 @@
 
 2. 构建
 ```
-$ cd dde-control-center
+$ cd deepin-face
 $ mkdir Build
 $ cd Build
 $ qmake ..
