@@ -2,9 +2,9 @@
 #include "definehead.h"
 
 CharaDataManger::CharaDataManger()
-    : m_spUadpInterface(new QDBusInterface("com.deepin.daemon.Uadp",
-                                           "/com/deepin/daemon/Uadp",
-                                           "com.deepin.daemon.Uadp",
+    : m_spUadpInterface(new QDBusInterface("org.deepin.daemon.Uadp1",
+                                           "/org/deepin/daemon/Uadp1",
+                                           "org.deepin.daemon.Uadp1",
                                            QDBusConnection::systemBus()))
 {
     m_charaData.clear();
