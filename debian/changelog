@@ -1,3 +1,10 @@
+deepin-face (2.0.2) unstable; urgency=medium
+
+  [ Deepin Packages Builder ]
+  * fix: 添加多个人脸数据显示异常及人脸数据管理异常(Bug: 157537, 157545)(Influence: 控制中心生物识别人脸录入及人脸数据管理)
+
+ -- baodi <baodi@uniontech.com>  Wed, 19 Oct 2022 11:20:16 +0800
+
 deepin-face (2.0.1) unstable; urgency=medium
 
   [ TagBuilder ]
