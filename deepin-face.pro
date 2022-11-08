@@ -43,11 +43,9 @@ HEADERS += \
     definehead.h
 
 
-INCLUDEPATH += /usr/include/opencv2 \
-               /usr/include/opencv4 \
-               /usr/include/c++/8
+INCLUDEPATH += /usr/include/c++/8
 
-LIBS += -L/usr/lib/auto -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_videoio -lopencv_imgcodecs \
+LIBS += -L/usr/lib/auto \
         -L/usr/lib -lSeetaFaceDetector600 -lSeetaFaceLandmarker600 \
         -lSeetaFaceAntiSpoofingX600d -lSeetaFaceTracking600 -lSeetaFaceRecognizer610 \
         -lSeetaQualityAssessor300 -lSeetaPoseEstimation600 -lSeetaAuthorize -ltennis

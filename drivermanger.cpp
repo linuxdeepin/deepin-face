@@ -9,18 +9,20 @@
 
 DriverManger::DriverManger()
     : m_spCharaDataManger(new CharaDataManger)
+    , m_eroll(new QThread(this))
+    , m_verify(new QThread(this))
 {
 }
 void DriverManger::init()
 {
-    this->m_spFileWatch = QSharedPointer<QFileSystemWatcher>(new QFileSystemWatcher(this));
-    this->m_spErollthread = QSharedPointer<ErollThread>(new ErollThread(sharedFromThis()));
-    this->m_spVerifyThread = QSharedPointer<VerifyThread>(new VerifyThread(sharedFromThis()));
-    this->m_spCharaDataManger->loadCharaData();
-    this->m_bClaim = false;
-    this->m_charalist = this->m_spCharaDataManger->getCharaList();
-    this->m_charaType = FACECHARATYPE;
-    this->m_spFileWatch->addPath("/dev/");
+    m_spFileWatch = QSharedPointer<QFileSystemWatcher>(new QFileSystemWatcher(this));
+    m_spErollthread = QSharedPointer<ErollThread>(new ErollThread());
+    m_spVerifyThread = QSharedPointer<VerifyThread>(new VerifyThread());
+    m_spCharaDataManger->loadCharaData();
+    m_bClaim = false;
+    m_charalist = this->m_spCharaDataManger->getCharaList();
+    m_charaType = FACECHARATYPE;
+    m_spFileWatch->addPath("/dev/");
 
     // 暂不支持热插拔
     connect(m_spFileWatch.get(),
@@ -29,6 +31,13 @@ void DriverManger::init()
             &DriverManger::onDirectoryChanged);
 
     onDirectoryChanged("/dev/");
+    m_spErollthread->moveToThread(m_eroll);
+    m_spVerifyThread->moveToThread(m_verify);
+    connect(m_spErollthread.data(), &ErollThread::processStatus, this, &DriverManger::processStatus);
+    connect(m_spVerifyThread.data(), &VerifyThread::processStatus, this, &DriverManger::processStatus);
+    m_eroll->start();
+    m_verify->start();
+    qDebug() << "DriverManger::init thread:" << QThread::currentThreadId();
 }
 
 QDBusUnixFileDescriptor DriverManger::enrollStart(QString chara,
@@ -71,7 +80,12 @@ QDBusUnixFileDescriptor DriverManger::enrollStart(QString chara,
     info.actionType = Enroll;
     m_actionMap[actionId] = info;
 
-    m_spErollthread->Start(actionId, fd[1]);
+    QMetaObject::invokeMethod(m_spErollthread.data(),
+                              "Start",
+                              Qt::QueuedConnection,
+                              QGenericReturnArgument(),
+                              Q_ARG(QString, actionId),
+                              Q_ARG(int, fd[1]));
 
     return QDBusUnixFileDescriptor(fd[0]);
 }
@@ -98,7 +112,9 @@ void DriverManger::enrollStop(QString actionId, ErrMsgInfo &errMsgInfo)
 
     ModelManger::getSingleInstanceModel().unLoad();
 
-    m_spErollthread->Stop();
+    QMetaObject::invokeMethod(m_spErollthread.data(),
+                              "Stop",
+                              Qt::BlockingQueuedConnection);
     m_actionMap.remove(actionId);
     auto charaList = m_spCharaDataManger->getCharaList();
     setCharaList(charaList);
@@ -116,7 +132,7 @@ QDBusUnixFileDescriptor DriverManger::verifyStart(QStringList charas,
         return QDBusUnixFileDescriptor(-1);
     }
 
-    QVector<float *> faceCharas = m_spCharaDataManger->getCharaData(charas);
+    QVector<float*> faceCharas = m_spCharaDataManger->getCharaData(charas);
 
     m_bClaim = true;
     ActionInfo info;
@@ -125,13 +141,19 @@ QDBusUnixFileDescriptor DriverManger::verifyStart(QStringList charas,
     qDebug() << "claim=true;";
     ModelManger::getSingleInstanceModel().load();
 
-    m_spVerifyThread->Start(actionId, faceCharas);
-
+    qRegisterMetaType<QVector<float*>>("QVector<float*>");
+    QMetaObject::invokeMethod(m_spVerifyThread.data(),
+                              "Start",
+                              Qt::QueuedConnection,
+                              QGenericReturnArgument(),
+                              Q_ARG(QString, actionId),
+                              Q_ARG(QVector<float*>, faceCharas));
     return QDBusUnixFileDescriptor(0);
 }
 
 void DriverManger::verifyStop(QString actionId, ErrMsgInfo &errMsgInfo)
 {
+    qDebug() << __LINE__ << "DriverManger::verifyStop";
     if (m_actionMap.count(actionId) != 1) {
         errMsgInfo.errType = QDBusError::InvalidArgs;
         errMsgInfo.msg = "not found action";
@@ -140,7 +162,9 @@ void DriverManger::verifyStop(QString actionId, ErrMsgInfo &errMsgInfo)
 
     m_bClaim = false;
     // 线程结束后才释放资源
-    m_spVerifyThread->Stop();
+    QMetaObject::invokeMethod(m_spVerifyThread.data(),
+                              "Stop",
+                              Qt::BlockingQueuedConnection);
     ModelManger::getSingleInstanceModel().unLoad();
     m_actionMap.remove(actionId);
 }

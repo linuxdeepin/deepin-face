@@ -5,61 +5,81 @@
 #ifndef WORKMODULE_H
 #define WORKMODULE_H
 
-#include "seeta/Common/CStruct.h"
-
+#include "qcamera.h"
 #include <memory>
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
 #include <unistd.h>
 #include <QDebug>
 #include <QImage>
 #include <QPixmap>
 #include <QThread>
+#include <QCameraImageCapture>
 
 QT_BEGIN_NAMESPACE
 class QMutex;
 QT_END_NAMESPACE
 
 class DriverManger;
-class ErollThread : public QThread
+class ErollThread : public QObject
 {
+    Q_OBJECT
 public:
-    ErollThread(QSharedPointer<DriverManger> spDriver);
+    ErollThread(QObject *parent=nullptr);
+
+Q_SIGNALS:
+    void processStatus(QString actionId, qint32 status, float *faceChara = nullptr, int size = 0);
+public Q_SLOTS:
     void Stop();
     void Start(QString m_actionId, int socket);
 
+
+
 protected:
     void run();
-    void sendCapture(cv::Mat mat);
+    void sendCapture(QImage &img);
+
+
+private Q_SLOTS:
+    void updateCameraState(QCamera::State state);
+    void readyForCapture(bool ready);
+    void captureError(int, QCameraImageCapture::Error, const QString &errorString);
+    void processCapturedImage(int id, const QImage &preview);
 
 private:
-    QWeakPointer<DriverManger> m_wpDriver;
-    QSharedPointer<cv::VideoCapture> m_spCapture;
+    QScopedPointer<QCamera> m_camera;
+    QScopedPointer<QCameraImageCapture> m_imageCapture;
     QString m_actionId;
-    bool m_bRun;
     int m_fileSocket;
     bool m_bFirst;
 };
 
 
-class VerifyThread : public QThread
+class VerifyThread : public QObject
 {
+    Q_OBJECT
 public:
-    VerifyThread(QSharedPointer<DriverManger> spDriver);
+    VerifyThread(QObject *parent=nullptr);
+
+Q_SIGNALS:
+    void processStatus(QString actionId, qint32 status, float *faceChara = nullptr, int size = 0);
+
+public Q_SLOTS:
     void Stop();
-    void Start(QString m_actionId, QVector<float *> charas);
+    void Start(QString m_actionId, QVector<float*> charas);
 
 protected:
     void run();
 
+private Q_SLOTS:
+    void updateCameraState(QCamera::State state);
+    void readyForCapture(bool ready);
+    void captureError(int, QCameraImageCapture::Error, const QString &errorString);
+    void processCapturedImage(int id, const QImage &preview);
+
 private:
-    QWeakPointer<DriverManger> m_wpDriver;
-    QSharedPointer<cv::VideoCapture> m_spCapture;
+    QScopedPointer<QCamera> m_camera;
+    QScopedPointer<QCameraImageCapture> m_imageCapture;
     QString m_actionId;
-    bool m_bRun;
-    QVector<float *> m_charaDatas;
-    QSharedPointer<QMutex> m_mutex;
+    QVector<float*> m_charaDatas;
 };
 
 #endif // WORKMODULE_H
