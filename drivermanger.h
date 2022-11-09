@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2022 UnionTech Software Technology Co., Ltd.
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #ifndef DRIVERMANGER_H
 #define DRIVERMANGER_H
 
@@ -48,6 +52,7 @@ public:
                                         ErrMsgInfo &errMsgInfo);
     void verifyStop(QString actionId, ErrMsgInfo &errMsgInfo);
     void deleteChara(QString chara, ErrMsgInfo &errMsgInfo);
+public Q_SLOTS:
     void processStatus(QString actionId, qint32 status, float *faceChara = nullptr, int size = 0);
 
 public:
@@ -75,6 +80,8 @@ private:
     qint32 m_charaType;
     QStringList m_charalist;
     QSharedPointer<QFileSystemWatcher> m_spFileWatch;
+    QThread *m_eroll;
+    QThread *m_verify;
 };
 
 #endif
