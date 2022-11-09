@@ -3,206 +3,78 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include "workmodule.h"
-#include "drivermanger.h"
 #include "modelmanger.h"
 
 #include <QCameraInfo>
 #include <QMutex>
 #include <QMutexLocker>
 
-ErollThread::ErollThread(QSharedPointer<DriverManger> spDriver)
-    : m_wpDriver(spDriver)
-    , m_spCapture(new cv::VideoCapture)
-    , m_bRun(false)
+ErollThread::ErollThread(QObject *parent)
+    : QObject(parent)
+    , m_camera(nullptr)
+    , m_imageCapture(nullptr)
 {
 }
 
 void ErollThread::Start(QString actionId, int socket)
 {
-    this->m_actionId = actionId;
-    this->m_bRun = true;
-    this->m_fileSocket = socket;
-    this->m_bFirst = true;
-    this->start();
+    qDebug() << "ErollThread::Start thread:" << QThread::currentThreadId();
+    m_actionId = actionId;
+    m_fileSocket = socket;
+    m_bFirst = true;
+    run();
 }
 
 void ErollThread::run()
 {
-    qDebug() << "ErollThread run";
-
-    QSharedPointer<DriverManger> driverManger;
-    if (m_wpDriver.isNull()) {
-        return;
-    } else {
-        driverManger = m_wpDriver.lock();
-    }
-
-    QList<QCameraInfo> cameraInfo = QCameraInfo::availableCameras();
-    bool bOpen = false;
-    QList<QCameraInfo>::iterator iter = cameraInfo.begin();
-    while (iter != cameraInfo.end()) {
-        int index = 0;
-        while (index < 3) {
-            bOpen = m_spCapture->open(iter->deviceName().toStdString());
-            if (bOpen) {
-                break;
-            }
-            index++;
-            qDebug() << "open camera " <<iter->deviceName()<<" fail "<<index;
-        }
-
-        if (bOpen) {
+    m_camera.reset();
+    auto cameras = QCameraInfo::availableCameras();
+    for (const auto &obj : qAsConst(cameras)) {
+        m_camera.reset(new QCamera(obj));
+        if (m_camera->isAvailable())
             break;
-        }
-        iter++;
     }
-    if (!bOpen) {
+
+
+    if (m_camera.isNull()) {
         qDebug() << "open camera fail";
-        driverManger->processStatus(m_actionId, FaceEnrollException);
+        Q_EMIT processStatus(m_actionId, FaceEnrollException);
         return;
     }
 
-    bool bTrack = true;
-    m_spCapture->set(cv::CAP_PROP_FRAME_WIDTH, 800);
-    m_spCapture->set(cv::CAP_PROP_FRAME_HEIGHT, 600);
-    cv::Mat mat;
-
-    while (m_bRun) {
-        bool bRead = m_spCapture->read(mat);
-        if (!bRead) {
-            qDebug() << "read camera fail";
-            driverManger->processStatus(m_actionId, FaceEnrollException);
-            return;
-        }
-        if (!bTrack) {
-            continue;
-        }
-        if (mat.channels() == 4) {
-            cv::cvtColor(mat, mat, cv::COLOR_RGBA2BGR);
-        }
-
-        cv::cvtColor(mat, mat, cv::COLOR_BGR2RGB);
-
-        if (m_bFirst) {
-            sendCapture(mat);
-            m_bFirst = false;
-        } else {
-            char buf[1];
-            if (read(m_fileSocket, buf, 1) == 1) {
-                sendCapture(mat);
-            }
-        }
-
-        cv::cvtColor(mat, mat, cv::COLOR_RGB2BGR);
-
-        SeetaImageData image;
-        image.height = mat.rows;
-        image.width = mat.cols;
-        image.channels = mat.channels();
-        image.data = mat.data;
-
-        if (!ModelManger::getSingleInstanceModel().avaliable()) {
-            continue;
-        }
-        ModelManger::getSingleInstanceModel().setFaceTrackSize(image.width, image.height);
-        auto faces = ModelManger::getSingleInstanceModel().getFaceTracker()->Track(image);
-        if (faces.size == 0) {
-            driverManger->processStatus(m_actionId, FaceEnrollNoFace);
-        } else if (faces.size > 1) {
-            driverManger->processStatus(m_actionId, FaceEnrollTooManyFace);
-        } else {
-            qDebug() << "faces :" << faces.size;
-
-            auto points = ModelManger::getSingleInstanceModel()
-                              .getFaceLandmarker()
-                              ->mark(image, faces.data[0].pos);
-            ModelManger::getSingleInstanceModel().getQualityAssessor()->feed(image,
-                                                                             faces.data[0].pos,
-                                                                             points.data(),
-                                                                             5);
-
-            seeta::QualityResult quality = ModelManger::getSingleInstanceModel()
-                                               .getQualityAssessor()
-                                               ->query(seeta::BRIGHTNESS);
-            if (quality.level < seeta::MEDIUM) {
-                driverManger->processStatus(m_actionId, FaceEnrollBrightness);
-                continue;
-            }
-            quality = ModelManger::getSingleInstanceModel().getQualityAssessor()->query(
-                seeta::RESOLUTION);
-            if (quality.level < seeta::MEDIUM) {
-                driverManger->processStatus(m_actionId, FaceEnrollFaceNotClear);
-                continue;
-            }
-            quality = ModelManger::getSingleInstanceModel().getQualityAssessor()->query(
-                seeta::CLARITY);
-            if (quality.level < seeta::MEDIUM) {
-                driverManger->processStatus(m_actionId, FaceEnrollFaceNotClear);
-                continue;
-            }
-
-            quality = ModelManger::getSingleInstanceModel().getQualityAssessor()->query(
-                seeta::INTEGRITY);
-            if (quality.level < seeta::MEDIUM) {
-                driverManger->processStatus(m_actionId, FaceEnrollFaceTooBig);
-                continue;
-            }
-            quality = ModelManger::getSingleInstanceModel().getQualityAssessor()->query(
-                seeta::POSE_EX);
-            if (quality.level < seeta::MEDIUM) {
-                driverManger->processStatus(m_actionId, FaceEnrollFaceNotCenter);
-                continue;
-            }
-
-            auto status = ModelManger::getSingleInstanceModel()
-                              .getFaceAntiSpoofing()
-                              ->Predict(image, faces.data[0].pos, points.data());
-            if (status == seeta::FaceAntiSpoofing::SPOOF) {
-                driverManger->processStatus(m_actionId, FaceEnrollNotRealHuman);
-                continue;
-
-            } else {
-                qDebug() << "antispoofing ok";
-            }
-
-            seeta::ImageData cropface = ModelManger::getSingleInstanceModel()
-                                            .getFaceRecognizer()
-                                            ->CropFaceV2(image, points.data());
-            int size = ModelManger::getSingleInstanceModel().getFaceRecognizer()->GetExtractFeatureSize();
-            float *features = static_cast<float *>(
-                malloc(sizeof(float) * static_cast<unsigned long>(size)));
-            bool bFound = ModelManger::getSingleInstanceModel()
-                              .getFaceRecognizer()
-                              ->ExtractCroppedFace(cropface, features);
-            if (bFound) {
-                qDebug() << "ExtractCroppedFace ok" << features;
-                bTrack = false;
-                driverManger->processStatus(m_actionId, FaceEnrollSuccess, features, size);
-            }
-            free(features);
-        }
+    m_camera->setCaptureMode(QCamera::CaptureStillImage);
+    m_imageCapture.reset(new QCameraImageCapture(m_camera.data()));
+    m_imageCapture->setCaptureDestination(QCameraImageCapture::CaptureToBuffer);
+    QList<QSize> supportedResolutions = m_imageCapture->supportedResolutions();
+    if (supportedResolutions.contains(QSize(800, 600))) {
+        auto settings = m_imageCapture->encodingSettings();
+        settings.setResolution(QSize(800, 600));
+        m_imageCapture->setEncodingSettings(settings);
     }
-    m_spCapture->release();
+    connect(m_camera.data(), &QCamera::stateChanged, this, &ErollThread::updateCameraState);
+    connect(m_imageCapture.data(), &QCameraImageCapture::readyForCaptureChanged, this, &ErollThread::readyForCapture);
+    connect(m_imageCapture.data(), &QCameraImageCapture::imageCaptured, this, &ErollThread::processCapturedImage);
+    connect(m_imageCapture.data(), QOverload<int, QCameraImageCapture::Error, const QString &>::of(&QCameraImageCapture::error),
+            this, &ErollThread::captureError);
+    m_camera->start();
 }
 
 void ErollThread::Stop()
 {
-    this->m_bRun = false;
+    qDebug() << "ErollThread::Stop thread:" << QThread::currentThreadId();
+    m_imageCapture->cancelCapture();
+    m_camera->stop();
+    m_camera->unload();
     close(m_fileSocket);
 }
 
-void ErollThread::sendCapture(cv::Mat mat)
+void ErollThread::sendCapture(QImage &img)
 {
-    qDebug() << "sendCapture";
-
-    QImage image(reinterpret_cast<const unsigned char *>(mat.data),
-                 mat.cols,
-                 mat.rows,
-                 static_cast<int>(mat.step),
-                 QImage::Format_RGB888);
+    QImage image(img.convertToFormat(QImage::Format_RGB888));
     uchar *buf;
     unsigned long size = 0;
     if (m_bFirst) {
+        qDebug() << "in sendCapture: first";
         size = sizeof(uchar)
                * (5 * sizeof(int32_t) + static_cast<unsigned long>(image.sizeInBytes()));
         buf = static_cast<uchar *>(malloc(size));
@@ -213,7 +85,7 @@ void ErollThread::sendCapture(cv::Mat mat)
         myBuf[3] = image.height();
         myBuf[4] = static_cast<qint32>(image.sizeInBytes());
 
-        memcpy(&buf[5 * sizeof(int32_t)], mat.data, static_cast<unsigned long>(myBuf[4]));
+        memcpy(&buf[5 * sizeof(int32_t)], image.bits(), static_cast<unsigned long>(myBuf[4]));
     } else {
         size = sizeof(uchar) * (sizeof(int32_t) + static_cast<unsigned long>(image.sizeInBytes()));
         buf = static_cast<uchar *>(malloc(size));
@@ -221,216 +93,348 @@ void ErollThread::sendCapture(cv::Mat mat)
         qint32 *myBuf = reinterpret_cast<qint32 *>(buf);
         myBuf[0] = static_cast<qint32>(image.sizeInBytes());
 
-        memcpy(&buf[1 * sizeof(int32_t)], mat.data, static_cast<unsigned long>(myBuf[0]));
+        memcpy(&buf[1 * sizeof(int32_t)], image.bits(), static_cast<unsigned long>(myBuf[0]));
     }
 
     unsigned long countSize = size;
-    qDebug() << "total size :" << size;
-    while (countSize > 0 && m_bRun) {
+    while (countSize > 0) {
         long sendSize = write(m_fileSocket, &buf[size - countSize], static_cast<size_t>(countSize));
         if (sendSize < 0) {
-            qDebug() << "send size" << sendSize;
             continue;
         }
-        qDebug() << "send size :" << sendSize;
         countSize -= static_cast<unsigned long>(sendSize);
-        usleep(1);
     }
     free(buf);
-    qDebug() << "send one capture finish";
 }
 
-VerifyThread::VerifyThread(QSharedPointer<DriverManger> spDriver)
-    : m_wpDriver(spDriver)
-    , m_spCapture(new cv::VideoCapture)
-    , m_bRun(false)
-    , m_mutex(new QMutex)
+void ErollThread::updateCameraState(QCamera::State state)
+{
+    qInfo() << "updateCameraState" << state;
+}
+
+void ErollThread::readyForCapture(bool ready)
+{
+    if (m_imageCapture && ready) {
+        m_imageCapture->capture();
+        qInfo() << "ErollThread::readyForCapture";
+    }
+}
+
+void ErollThread::captureError(int, QCameraImageCapture::Error, const QString &errorString)
+{
+    qDebug() << "read camera fail:" << errorString;
+    Q_EMIT processStatus(m_actionId, FaceEnrollException);
+    return;
+}
+
+void ErollThread::processCapturedImage(int id, const QImage &preview)
+{
+    QImage img(preview.scaled(QSize(800, 600)));
+
+    if (1 == id) {
+        sendCapture(img);
+        m_bFirst = false;
+    } else {
+        char buf[1];
+        while (read(m_fileSocket, buf, 1) == 0) {
+            usleep(1);
+        }
+        sendCapture(img);
+    }
+    img = img.convertToFormat(QImage::Format_RGB888).rgbSwapped();
+    SeetaImageData image;
+    image.height = img.height();
+    image.width = img.width();
+    image.channels = 3;
+    image.data = img.scanLine(0);
+
+    if (!ModelManger::getSingleInstanceModel().avaliable()) {
+        m_imageCapture->capture();
+        return;
+    }
+    ModelManger::getSingleInstanceModel().setFaceTrackSize(image.width, image.height);
+    auto faces = ModelManger::getSingleInstanceModel().getFaceTracker()->Track(image);
+    if (faces.size == 0) {
+        Q_EMIT processStatus(m_actionId, FaceEnrollNoFace);
+    } else if (faces.size > 1) {
+        Q_EMIT processStatus(m_actionId, FaceEnrollTooManyFace);
+    } else {
+        qDebug() << "faces :" << faces.size;
+
+        auto points = ModelManger::getSingleInstanceModel()
+                          .getFaceLandmarker()
+                          ->mark(image, faces.data[0].pos);
+        ModelManger::getSingleInstanceModel().getQualityAssessor()->feed(image,
+                                                                         faces.data[0].pos,
+                                                                         points.data(),
+                                                                         5);
+
+        seeta::QualityResult quality = ModelManger::getSingleInstanceModel()
+                                           .getQualityAssessor()
+                                           ->query(seeta::BRIGHTNESS);
+        if (quality.level < seeta::MEDIUM) {
+            Q_EMIT processStatus(m_actionId, FaceEnrollBrightness);
+            m_imageCapture->capture();
+            return;
+        }
+        quality = ModelManger::getSingleInstanceModel().getQualityAssessor()->query(
+            seeta::RESOLUTION);
+        if (quality.level < seeta::MEDIUM) {
+            Q_EMIT processStatus(m_actionId, FaceEnrollFaceNotClear);
+            m_imageCapture->capture();
+            return;
+        }
+        quality = ModelManger::getSingleInstanceModel().getQualityAssessor()->query(
+            seeta::CLARITY);
+        if (quality.level < seeta::MEDIUM) {
+            Q_EMIT processStatus(m_actionId, FaceEnrollFaceNotClear);
+            m_imageCapture->capture();
+            return;
+        }
+
+        quality = ModelManger::getSingleInstanceModel().getQualityAssessor()->query(
+            seeta::INTEGRITY);
+        if (quality.level < seeta::MEDIUM) {
+            Q_EMIT processStatus(m_actionId, FaceEnrollFaceTooBig);
+            m_imageCapture->capture();
+            return;
+        }
+        quality = ModelManger::getSingleInstanceModel().getQualityAssessor()->query(
+            seeta::POSE_EX);
+        if (quality.level < seeta::MEDIUM) {
+            Q_EMIT processStatus(m_actionId, FaceEnrollFaceNotCenter);
+            m_imageCapture->capture();
+            return;
+        }
+
+        auto status = ModelManger::getSingleInstanceModel()
+                          .getFaceAntiSpoofing()
+                          ->Predict(image, faces.data[0].pos, points.data());
+        if (status == seeta::FaceAntiSpoofing::SPOOF) {
+            Q_EMIT processStatus(m_actionId, FaceEnrollNotRealHuman);
+            m_imageCapture->capture();
+            return;
+
+        } else {
+            qDebug() << "antispoofing ok";
+        }
+
+        seeta::ImageData cropface = ModelManger::getSingleInstanceModel()
+                                        .getFaceRecognizer()
+                                        ->CropFaceV2(image, points.data());
+        int size = ModelManger::getSingleInstanceModel().getFaceRecognizer()->GetExtractFeatureSize();
+        float *features = static_cast<float *>(
+            malloc(sizeof(float) * static_cast<unsigned long>(size)));
+        bool bFound = ModelManger::getSingleInstanceModel()
+                          .getFaceRecognizer()
+                          ->ExtractCroppedFace(cropface, features);
+        if (bFound) {
+            qDebug() << "ExtractCroppedFace ok" << features;
+            Q_EMIT processStatus(m_actionId, FaceEnrollSuccess, features, size);
+            return;
+        }
+        free(features);
+    }
+    m_imageCapture->capture();
+}
+
+VerifyThread::VerifyThread(QObject *parent)
+    : QObject(parent)
+    , m_camera(nullptr)
+    , m_imageCapture(nullptr)
 {
 }
 
-void VerifyThread::Start(QString actionId, QVector<float *> charas)
+void VerifyThread::Start(QString actionId, QVector<float*> charas)
 {
-    this->m_actionId = actionId;
-    this->m_bRun = true;
+    qDebug() << "VerifyThread::Start thread:" << QThread::currentThreadId();
+    m_actionId = actionId;
     for (int i = 0; i < m_charaDatas.size(); i++) {
         if (m_charaDatas[i] != nullptr) {
             free(m_charaDatas[i]);
         }
     }
-    this->m_charaDatas.clear();
+    m_charaDatas.clear();
     qDebug() << "charas size" << charas.size();
-    this->m_charaDatas = charas;
+    m_charaDatas = charas;
 
-    this->start();
+    run();
 }
 
 void VerifyThread::run()
 {
     qDebug() << "Verify run";
-    QMutexLocker locker(m_mutex.get());
-    QSharedPointer<DriverManger> driverManger;
-    if (m_wpDriver.isNull()) {
-        return;
-    } else {
-        driverManger = m_wpDriver.lock();
-    }
-
-    QList<QCameraInfo> cameraInfo = QCameraInfo::availableCameras();
-    bool bOpen = false;
-    QList<QCameraInfo>::iterator iter = cameraInfo.begin();
-    while (iter != cameraInfo.end()) {
-        int index = 0;
-        while (index < 3) {
-            bOpen = m_spCapture->open(iter->deviceName().toStdString());
-            if (bOpen) {
-                break;
-            }
-            index++;
-            qDebug() << "open camera " <<iter->deviceName()<<" fail "<<index;
-        }
-
-        if (bOpen) {
+    m_camera.reset();
+    auto cameras = QCameraInfo::availableCameras();
+    for (const auto &obj : qAsConst(cameras)) {
+        m_camera.reset(new QCamera(obj));
+        if (m_camera->isAvailable())
             break;
-        }
-        iter++;
     }
-    if (!bOpen) {
+    if (m_camera.isNull()) {
         qDebug() << "open camera fail";
-        driverManger->processStatus(m_actionId, FaceEnrollException);
+        Q_EMIT processStatus(m_actionId, FaceEnrollException);
         return;
     }
 
-    bool bTrack = true;
-    m_spCapture->set(cv::CAP_PROP_FRAME_WIDTH, 800);
-    m_spCapture->set(cv::CAP_PROP_FRAME_HEIGHT, 600);
-    cv::Mat mat;
+    m_camera->setCaptureMode(QCamera::CaptureStillImage);
+    m_imageCapture.reset(new QCameraImageCapture(m_camera.data()));
+    m_imageCapture->setCaptureDestination(QCameraImageCapture::CaptureToBuffer);
+    QList<QSize> supportedResolutions = m_imageCapture->supportedResolutions();
+    if (supportedResolutions.contains(QSize(800, 600))) {
+        auto settings = m_imageCapture->encodingSettings();
+        settings.setResolution(QSize(800, 600));
+        m_imageCapture->setEncodingSettings(settings);
+    }
 
-    while (m_bRun) {
-        bool bRead = m_spCapture->read(mat);
-        if (!bRead) {
-            driverManger->processStatus(m_actionId, FaceVerifyException);
+    connect(m_camera.data(), &QCamera::stateChanged, this, &VerifyThread::updateCameraState);
+    connect(m_imageCapture.data(), &QCameraImageCapture::readyForCaptureChanged, this, &VerifyThread::readyForCapture);
+    connect(m_imageCapture.data(), &QCameraImageCapture::imageCaptured, this, &VerifyThread::processCapturedImage);
+    connect(m_imageCapture.data(), QOverload<int, QCameraImageCapture::Error, const QString &>::of(&QCameraImageCapture::error),
+            this, &VerifyThread::captureError);
+    m_camera->start();
+}
+
+void VerifyThread::updateCameraState(QCamera::State state)
+{
+    qDebug() << "updateCameraState" << state;
+}
+
+void VerifyThread::readyForCapture(bool ready)
+{
+    if (m_imageCapture && ready) {
+        m_imageCapture->capture();
+        qDebug() << "VerifyThread::readyForCapture";
+    }
+}
+
+void VerifyThread::captureError(int, QCameraImageCapture::Error, const QString &errorString)
+{
+    qDebug() << "read camera fail:" << errorString;
+    Q_EMIT processStatus(m_actionId, FaceEnrollException);
+    return;
+}
+
+void VerifyThread::processCapturedImage(int id, const QImage &preview)
+{
+    Q_UNUSED(id)
+
+    QImage img(preview.scaled(QSize(800, 600)).convertToFormat(QImage::Format_RGB888).rgbSwapped());
+    SeetaImageData image;
+    image.height = img.height();
+    image.width = img.width();
+    image.channels = 3;
+    image.data = img.scanLine(0);
+
+    ModelManger::getSingleInstanceModel().setFaceTrackSize(image.width, image.height);
+    auto faces = ModelManger::getSingleInstanceModel().getFaceTracker()->Track(image);
+    if (faces.size == 0) {
+        Q_EMIT processStatus(m_actionId, FaceVerifyNoFace);
+    } else if (faces.size > 1) {
+        Q_EMIT processStatus(m_actionId, FaceVerifyTooManyFace);
+    } else {
+        qDebug() << "faces :" << faces.size;
+
+        auto points = ModelManger::getSingleInstanceModel()
+                          .getFaceLandmarker()
+                          ->mark(image, faces.data[0].pos);
+        ModelManger::getSingleInstanceModel().getQualityAssessor()->feed(image,
+                                                                         faces.data[0].pos,
+                                                                         points.data(),
+                                                                         5);
+
+        seeta::QualityResult quality = ModelManger::getSingleInstanceModel()
+                                           .getQualityAssessor()
+                                           ->query(seeta::BRIGHTNESS);
+
+        auto resetFaceTracker = [this] (){
+            ModelManger::getSingleInstanceModel().getFaceTracker()->Reset();
+            m_imageCapture->capture();
+        };
+        if (quality.level < seeta::MEDIUM) {
+            Q_EMIT processStatus(m_actionId, FaceVerifyBrightness);
+            resetFaceTracker();
             return;
         }
-        if (mat.channels() == 4) {
-            cv::cvtColor(mat, mat, cv::COLOR_RGBA2BGR);
+        quality = ModelManger::getSingleInstanceModel().getQualityAssessor()->query(
+            seeta::RESOLUTION);
+        if (quality.level < seeta::MEDIUM) {
+            Q_EMIT processStatus(m_actionId, FaceVerifyFaceNotClear);
+            resetFaceTracker();
+            return;
         }
-        SeetaImageData image;
-        image.height = mat.rows;
-        image.width = mat.cols;
-        image.channels = mat.channels();
-        image.data = mat.data;
-
-        if (!bTrack) {
-            continue;
+        quality = ModelManger::getSingleInstanceModel().getQualityAssessor()->query(
+            seeta::CLARITY);
+        if (quality.level < seeta::MEDIUM) {
+            Q_EMIT processStatus(m_actionId, FaceVerifyFaceNotClear);
+            resetFaceTracker();
+            return;
         }
 
-        ModelManger::getSingleInstanceModel().setFaceTrackSize(image.width, image.height);
-        auto faces = ModelManger::getSingleInstanceModel().getFaceTracker()->Track(image);
-        if (faces.size == 0) {
-            driverManger->processStatus(m_actionId, FaceVerifyNoFace);
-        } else if (faces.size > 1) {
-            driverManger->processStatus(m_actionId, FaceVerifyTooManyFace);
+        quality = ModelManger::getSingleInstanceModel().getQualityAssessor()->query(
+            seeta::INTEGRITY);
+        if (quality.level < seeta::MEDIUM) {
+            Q_EMIT processStatus(m_actionId, FaceVerifyFaceTooBig);
+            resetFaceTracker();
+            return;
+        }
+        quality = ModelManger::getSingleInstanceModel().getQualityAssessor()->query(
+            seeta::POSE_EX);
+        if (quality.level < seeta::MEDIUM) {
+            Q_EMIT processStatus(m_actionId, FaceVerifyFaceNotCenter);
+            resetFaceTracker();
+            return;
+        }
+
+        auto status = ModelManger::getSingleInstanceModel()
+                          .getFaceAntiSpoofing()
+                          ->Predict(image, faces.data[0].pos, points.data());
+        if (status == seeta::FaceAntiSpoofing::SPOOF) {
+            Q_EMIT processStatus(m_actionId, FaceVerifyNotRealHuman);
+            resetFaceTracker();
+            return;
+
         } else {
-            qDebug() << "faces :" << faces.size;
+            qDebug() << "antispoofing ok";
+        }
 
-            auto points = ModelManger::getSingleInstanceModel()
-                              .getFaceLandmarker()
-                              ->mark(image, faces.data[0].pos);
-            ModelManger::getSingleInstanceModel().getQualityAssessor()->feed(image,
-                                                                             faces.data[0].pos,
-                                                                             points.data(),
-                                                                             5);
-
-            seeta::QualityResult quality = ModelManger::getSingleInstanceModel()
-                                               .getQualityAssessor()
-                                               ->query(seeta::BRIGHTNESS);
-            if (quality.level < seeta::MEDIUM) {
-                driverManger->processStatus(m_actionId, FaceVerifyBrightness);
-                ModelManger::getSingleInstanceModel().getFaceTracker()->Reset();
-                continue;
-            }
-            quality = ModelManger::getSingleInstanceModel().getQualityAssessor()->query(
-                seeta::RESOLUTION);
-            if (quality.level < seeta::MEDIUM) {
-                driverManger->processStatus(m_actionId, FaceVerifyFaceNotClear);
-                ModelManger::getSingleInstanceModel().getFaceTracker()->Reset();
-                continue;
-            }
-            quality = ModelManger::getSingleInstanceModel().getQualityAssessor()->query(
-                seeta::CLARITY);
-            if (quality.level < seeta::MEDIUM) {
-                driverManger->processStatus(m_actionId, FaceVerifyFaceNotClear);
-                ModelManger::getSingleInstanceModel().getFaceTracker()->Reset();
-                continue;
-            }
-
-            quality = ModelManger::getSingleInstanceModel().getQualityAssessor()->query(
-                seeta::INTEGRITY);
-            if (quality.level < seeta::MEDIUM) {
-                driverManger->processStatus(m_actionId, FaceVerifyFaceTooBig);
-                ModelManger::getSingleInstanceModel().getFaceTracker()->Reset();
-                continue;
-            }
-            quality = ModelManger::getSingleInstanceModel().getQualityAssessor()->query(
-                seeta::POSE_EX);
-            if (quality.level < seeta::MEDIUM) {
-                driverManger->processStatus(m_actionId, FaceVerifyFaceNotCenter);
-                ModelManger::getSingleInstanceModel().getFaceTracker()->Reset();
-                continue;
-            }
-
-            auto status = ModelManger::getSingleInstanceModel()
-                              .getFaceAntiSpoofing()
-                              ->Predict(image, faces.data[0].pos, points.data());
-            if (status == seeta::FaceAntiSpoofing::SPOOF) {
-                driverManger->processStatus(m_actionId, FaceVerifyNotRealHuman);
-                bTrack = false;
-                ModelManger::getSingleInstanceModel().getFaceTracker()->Reset();
-                continue;
-
-            } else {
-                qDebug() << "antispoofing ok";
-            }
-
-            seeta::ImageData cropface = ModelManger::getSingleInstanceModel()
-                                            .getFaceRecognizer()
-                                            ->CropFaceV2(image, points.data());
-            int size = ModelManger::getSingleInstanceModel().getFaceRecognizer()->GetExtractFeatureSize();
-            float *features = static_cast<float *>(
-                malloc(sizeof(float) * static_cast<unsigned long>(size)));
-            bool bFound = ModelManger::getSingleInstanceModel()
-                              .getFaceRecognizer()
-                              ->ExtractCroppedFace(cropface, features);
-            if (bFound) {
-                qDebug() << "ExtractCroppedFace ok" << features;
-                for (auto iter : m_charaDatas) {
-                    float score = ModelManger::getSingleInstanceModel()
-                                      .getFaceRecognizer()
-                                      ->CalculateSimilarity(features, iter);
-                    qDebug() << "score :" << score;
-                    if (score > float(FACETlIGHTHRESHOLD)) {
-                        driverManger->processStatus(m_actionId, FaceVerifySuccess);
-                        bTrack = false;
-                        break;
-                    }
+        seeta::ImageData cropface = ModelManger::getSingleInstanceModel()
+                                        .getFaceRecognizer()
+                                        ->CropFaceV2(image, points.data());
+        int size = ModelManger::getSingleInstanceModel().getFaceRecognizer()->GetExtractFeatureSize();
+        float *features = static_cast<float *>(
+            malloc(sizeof(float) * static_cast<unsigned long>(size)));
+        bool bFound = ModelManger::getSingleInstanceModel()
+                          .getFaceRecognizer()
+                          ->ExtractCroppedFace(cropface, features);
+        if (bFound) {
+            qDebug() << "ExtractCroppedFace ok" << features;
+            for (auto iter : qAsConst(m_charaDatas)) {
+                float score = ModelManger::getSingleInstanceModel()
+                                  .getFaceRecognizer()
+                                  ->CalculateSimilarity(features, iter);
+                qDebug() << "score :" << score;
+                if (score > float(FACETlIGHTHRESHOLD)) {
+                    Q_EMIT processStatus(m_actionId, FaceVerifySuccess);
+                    return;
                 }
             }
         }
     }
-
-    m_spCapture->release();
+    m_imageCapture->capture();
 }
 
 // 等待线程结束后返回
 void VerifyThread::Stop()
 {
-    this->m_bRun = false;
-
-    QMutexLocker locker(m_mutex.get());
+    qDebug() << "VerifyThread::Stop thread:" << QThread::currentThreadId();
+    m_imageCapture->cancelCapture();
+    m_camera->stop();
+    m_camera->unload();
     for (int i = 0; i < m_charaDatas.size(); i++) {
         if (m_charaDatas[i] != nullptr) {
             free(m_charaDatas[i]);
         }
     }
-    this->m_charaDatas.clear();
+    m_charaDatas.clear();
 }
