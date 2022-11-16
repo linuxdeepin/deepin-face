@@ -4,6 +4,6 @@ Description=Deepin Face Authenticate Driver
 [Service]
 User=root
 Type=dbus
-BusName=com.deepin.face
+BusName=org.deepin.dde.Face1
 ExecStart=/usr/libexec/deepin-face
 
