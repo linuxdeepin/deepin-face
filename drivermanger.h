@@ -41,6 +41,7 @@ class DriverManger : public QObject, public QEnableSharedFromThis<DriverManger>
     Q_OBJECT
 public:
     DriverManger();
+    virtual ~DriverManger();
     void init();
     QDBusUnixFileDescriptor enrollStart(QString chara,
                                         qint32 charaType,

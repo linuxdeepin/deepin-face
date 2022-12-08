@@ -13,6 +13,14 @@ DriverManger::DriverManger()
     , m_verify(new QThread(this))
 {
 }
+
+DriverManger::~DriverManger()
+{
+    m_eroll->quit();
+    m_eroll->wait(1000);
+    m_verify->quit();
+    m_verify->wait(1000);
+}
 void DriverManger::init()
 {
     m_spFileWatch = QSharedPointer<QFileSystemWatcher>(new QFileSystemWatcher(this));

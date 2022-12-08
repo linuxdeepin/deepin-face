@@ -13,12 +13,15 @@ ErollThread::ErollThread(QObject *parent)
     : QObject(parent)
     , m_camera(nullptr)
     , m_imageCapture(nullptr)
+    , m_bFirst(false)
+    , m_stopCapture(false)
 {
 }
 
 void ErollThread::Start(QString actionId, int socket)
 {
     qDebug() << "ErollThread::Start thread:" << QThread::currentThreadId();
+    m_stopCapture = false;
     m_actionId = actionId;
     m_fileSocket = socket;
     m_bFirst = true;
@@ -63,6 +66,7 @@ void ErollThread::Stop()
 {
     qDebug() << "ErollThread::Stop thread:" << QThread::currentThreadId();
     m_imageCapture->cancelCapture();
+    m_stopCapture = true;
     m_camera->stop();
     m_camera->unload();
     close(m_fileSocket);
@@ -97,9 +101,10 @@ void ErollThread::sendCapture(QImage &img)
     }
 
     unsigned long countSize = size;
-    while (countSize > 0) {
+    while (countSize > 0 && !m_stopCapture) {
         long sendSize = write(m_fileSocket, &buf[size - countSize], static_cast<size_t>(countSize));
         if (sendSize < 0) {
+            QCoreApplication::processEvents();
             continue;
         }
         countSize -= static_cast<unsigned long>(sendSize);
