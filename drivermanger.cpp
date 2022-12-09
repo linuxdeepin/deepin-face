@@ -9,10 +9,9 @@
 
 DriverManger::DriverManger()
     : m_spCharaDataManger(new CharaDataManger)
-    , m_eroll(new QThread(this))
-    , m_verify(new QThread(this))
 {
 }
+
 void DriverManger::init()
 {
     m_spFileWatch = QSharedPointer<QFileSystemWatcher>(new QFileSystemWatcher(this));
@@ -31,12 +30,8 @@ void DriverManger::init()
             &DriverManger::onDirectoryChanged);
 
     onDirectoryChanged("/dev/");
-    m_spErollthread->moveToThread(m_eroll);
-    m_spVerifyThread->moveToThread(m_verify);
     connect(m_spErollthread.data(), &ErollThread::processStatus, this, &DriverManger::processStatus);
     connect(m_spVerifyThread.data(), &VerifyThread::processStatus, this, &DriverManger::processStatus);
-    m_eroll->start();
-    m_verify->start();
     qDebug() << "DriverManger::init thread:" << QThread::currentThreadId();
 }
 

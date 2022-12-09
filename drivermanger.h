@@ -80,8 +80,6 @@ private:
     qint32 m_charaType;
     QStringList m_charalist;
     QSharedPointer<QFileSystemWatcher> m_spFileWatch;
-    QThread *m_eroll;
-    QThread *m_verify;
 };
 
 #endif
