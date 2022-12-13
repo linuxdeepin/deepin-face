@@ -50,6 +50,7 @@ private:
     QString m_actionId;
     int m_fileSocket;
     bool m_bFirst;
+    bool m_stopCapture;
 };
 
 
