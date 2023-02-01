@@ -1,6 +1,6 @@
 {
-    "service": "com.deepin.face",
-    "path": "/com/deepin/face",
-    "interface": "com.deepin.face",
+    "service": "org.deepin.dde.Face1",
+    "path": "/org/deepin/dde/Face1",
+    "interface": "org.deepin.dde.Face1",
     "type": 4
 }

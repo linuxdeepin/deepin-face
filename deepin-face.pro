@@ -59,10 +59,10 @@ isEmpty(PREFIX){
 target.path = $${PREFIX}/libexec
 
 dbus_conf.path = $$PREFIX/share/dbus-1/system.d/
-dbus_conf.files = $$PWD/msic/dbus-conf/com.deepin.face.conf
+dbus_conf.files = $$PWD/msic/dbus-conf/org.deepin.dde.Face1.conf
 
 dbus_server.path = $$PREFIX/share/dbus-1/system-services/
-dbus_server.files = $$PWD/msic/dbus-services/com.deepin.face.service
+dbus_server.files = $$PWD/msic/dbus-services/org.deepin.dde.Face1.service
 
 systemd.path = /lib/systemd/system/
 systemd.files = $$PWD/msic/systemd/deepin-face.service

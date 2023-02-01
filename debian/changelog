@@ -1,3 +1,33 @@
+deepin-face (2.0.3) unstable; urgency=medium
+
+  [ TagBuilder ]
+  * chore: 去除opencv依赖，调整人脸采集流程及处理(Task: 206871)(Influence: 控制中心生物识别人脸录入、人脸数据管理及鉴权人脸对比验证等)
+  * feat: 接口更变，增加V23接口(Task: 207483)(Influence: 接口更变)
+  * feat: 修复接口名称修改错误问题(Task: 207483)(Influence: 接口更变)
+  * fix: 修复接口调用录入时可能导致服务无法退出问题(Task: 206871)(Influence: 控制中心生物识别人脸录入、人脸数据管理及鉴权人脸对比验证等)
+
+ -- zhaoyingzhen <zhaoyingzhen@uniontech.com>  Tue, 13 Dec 2022 19:27:51 +0800
+
+deepin-face (2.0.2) unstable; urgency=medium
+
+  [ Deepin Packages Builder ]
+  * fix: 添加多个人脸数据显示异常及人脸数据管理异常(Bug: 157537, 157545)(Influence: 控制中心生物识别人脸录入及人脸数据管理)
+
+ -- baodi <baodi@uniontech.com>  Wed, 19 Oct 2022 11:20:16 +0800
+
+deepin-face (2.0.1) unstable; urgency=medium
+
+  [ TagBuilder ]
+  * fix: 修复无法录入人脸数据的问题(Bug: 141827)(Influence: 人脸服务录入等功能正常)
+
+ -- caixiangrong <caixiangrong@uniontech.com>  Mon, 25 Jul 2022 11:16:02 +0800
+
+deepin-face (2.0.0.0) unstable; urgency=medium
+
+  * release 2.0.0.0
+
+ --  <fanpengcheng@uniontech.com>  Tue, 14 June 2022 17:24:13 +0800
+
 deepin-face (1.0.0.0) unstable; urgency=medium
 
   * Initial Release.

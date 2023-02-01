@@ -15,7 +15,19 @@ ErollThread::ErollThread(QObject *parent)
     , m_imageCapture(nullptr)
     , m_bFirst(false)
     , m_stopCapture(false)
+    , m_eroll(new QThread(this))
 {
+    moveToThread(m_eroll);
+    m_eroll->start();
+}
+
+ErollThread::~ErollThread()
+{
+    QMetaObject::invokeMethod(this,
+                              "Stop",
+                              Qt::BlockingQueuedConnection);
+    m_eroll->quit();
+    m_eroll->wait(1000);
 }
 
 void ErollThread::Start(QString actionId, int socket)
@@ -64,11 +76,16 @@ void ErollThread::run()
 
 void ErollThread::Stop()
 {
+    if (m_stopCapture)
+        return;
     qDebug() << "ErollThread::Stop thread:" << QThread::currentThreadId();
-    m_imageCapture->cancelCapture();
+    if (m_imageCapture)
+        m_imageCapture->cancelCapture();
     m_stopCapture = true;
-    m_camera->stop();
-    m_camera->unload();
+    if (m_camera) {
+        m_camera->stop();
+        m_camera->unload();
+    }
     close(m_fileSocket);
 }
 
@@ -247,7 +264,19 @@ VerifyThread::VerifyThread(QObject *parent)
     : QObject(parent)
     , m_camera(nullptr)
     , m_imageCapture(nullptr)
+    , m_verify(new QThread(this))
 {
+    moveToThread(m_verify);
+    m_verify->start();
+}
+
+VerifyThread::~VerifyThread()
+{
+    QMetaObject::invokeMethod(this,
+                              "Stop",
+                              Qt::BlockingQueuedConnection);
+    m_verify->quit();
+    m_verify->wait(1000);
 }
 
 void VerifyThread::Start(QString actionId, QVector<float*> charas)
@@ -433,9 +462,12 @@ void VerifyThread::processCapturedImage(int id, const QImage &preview)
 void VerifyThread::Stop()
 {
     qDebug() << "VerifyThread::Stop thread:" << QThread::currentThreadId();
-    m_imageCapture->cancelCapture();
-    m_camera->stop();
-    m_camera->unload();
+    if (m_imageCapture)
+        m_imageCapture->cancelCapture();
+    if (m_camera) {
+        m_camera->stop();
+        m_camera->unload();
+    }
     for (int i = 0; i < m_charaDatas.size(); i++) {
         if (m_charaDatas[i] != nullptr) {
             free(m_charaDatas[i]);

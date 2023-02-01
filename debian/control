@@ -37,6 +37,6 @@ Depends: ${shlibs:Depends},
 	  seetaface-tennis,
 	  seetaface-models,
 	  libqt5multimedia5-plugins,
-      gstreamer1.0-plugins-bad
+	  gstreamer1.0-plugins-bad
 Description: Face recognition service 
  deepin-face is a face recognition service implemented by the open source face recognition engine seetaface

@@ -153,17 +153,17 @@ interface: com.example.Face
     <busconfig>
       <!-- Only root can own the service -->
       <policy user="root">
-        <allow own="com.deepin.face"/>
+        <allow own="org.deepin.dde.Face1"/>
       </policy>
     
       <!-- Allow anyone to invoke methods on the interfaces -->
       <policy context="default">
-        <allow send_destination="com.deepin.face"/>
+        <allow send_destination="org.deepin.dde.Face1"/>
     
       </policy>
       <policy user="root">
-        <allow own="com.deepin.face"/>
-        <allow send_destination="com.deepin.face" />
+        <allow own="org.deepin.face"/>
+        <allow send_destination="org.deepin.dde.Face1" />
       </policy>
     </busconfig>
 
@@ -223,4 +223,4 @@ size 为 int32 类型。接下来写入 size 个字节，表示图像数据本�
 
 ## 数据存储
 
-建议将数据存储在system dbus上的com.deepin.daemon.Uadp服务上。
+建议将数据存储在system dbus上的org.deepin.dde.Uadp1服务上。
