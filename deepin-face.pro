@@ -1,4 +1,4 @@
-QT += gui dbus dtkcore multimedia
+QT += gui dbus dtkcore multimedia concurrent
 
 CONFIG += c++11 link_pkgconfig
 CONFIG -= app_bundle
