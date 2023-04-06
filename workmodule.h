@@ -24,7 +24,6 @@ class ErollThread : public QObject
     Q_OBJECT
 public:
     ErollThread(QObject *parent=nullptr);
-    virtual ~ErollThread();
 
 Q_SIGNALS:
     void processStatus(QString actionId, qint32 status, float *faceChara = nullptr, int size = 0);
@@ -52,7 +51,7 @@ private:
     int m_fileSocket;
     bool m_bFirst;
     bool m_stopCapture;
-    QThread *m_eroll;
+    bool m_checkDone;
 };
 
 
@@ -61,7 +60,6 @@ class VerifyThread : public QObject
     Q_OBJECT
 public:
     VerifyThread(QObject *parent=nullptr);
-    virtual ~VerifyThread();
 
 Q_SIGNALS:
     void processStatus(QString actionId, qint32 status, float *faceChara = nullptr, int size = 0);
@@ -84,7 +82,6 @@ private:
     QScopedPointer<QCameraImageCapture> m_imageCapture;
     QString m_actionId;
     QVector<float*> m_charaDatas;
-    QThread *m_verify;
 };
 
 #endif // WORKMODULE_H
