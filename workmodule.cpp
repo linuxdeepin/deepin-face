@@ -465,7 +465,10 @@ void VerifyThread::processCapturedImage(int id, const QImage &preview)
 void VerifyThread::Stop()
 {
     qDebug() << "VerifyThread::Stop thread:" << QThread::currentThreadId();
+
     m_imageCapture->cancelCapture();
+    // 当关闭相机后, 会取消图片的抓取, 此时不需要去处理抓取的图片
+    disconnect(m_imageCapture.data(), &QCameraImageCapture::imageCaptured, this, &VerifyThread::processCapturedImage);
     m_camera->stop();
     m_camera->unload();
     for (int i = 0; i < m_charaDatas.size(); i++) {
