@@ -1,3 +1,10 @@
+deepin-face (2.0.4) unstable; urgency=medium
+
+  * fix: deepin-face出现崩溃
+  * chore: 异步处理人脸数据验证
+
+ -- dengbo <dengbo@uniontech.com>  Fri, 7 Apr 2022 13:38:45 +0800
+
 deepin-face (2.0.3) unstable; urgency=medium
 
   [ TagBuilder ]
