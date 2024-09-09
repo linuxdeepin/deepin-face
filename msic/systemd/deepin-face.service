@@ -1,9 +1,39 @@
 [Unit]
 Description=Deepin Face Authenticate Driver 
 
+# Ask for the dbus socket.
+Wants=dbus.socket
+After=dbus.socket
+
 [Service]
-User=root
 Type=dbus
-BusName=org.deepin.dde.Face1
+User=deepin-daemon
+SupplementaryGroups=video
+BusName=com.deepin.face
 ExecStart=/usr/libexec/deepin-face
 
+ProtectSystem=strict
+#ReadOnlyPaths=/usr/share/seetaface-models/
+ReadWritePaths=/var/log/deepin-face.log
+
+DeviceAllow=char-video4linux
+DevicePolicy=closed
+
+NoNewPrivileges=yes
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+PrivateMounts=yes
+PrivateTmp=yes
+# 需要video device
+#PrivateDevices=yes
+PrivateNetwork=yes
+PrivateUsers=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+RestrictRealtime=yes
+RemoveIPC=yes
+MemoryDenyWriteExecute=yes
+# 内存占用TODO
+#MemoryLimit=100M
