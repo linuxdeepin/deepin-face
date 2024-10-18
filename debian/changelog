@@ -1,3 +1,9 @@
+deepin-face (2.0.5) unstable; urgency=medium
+
+  * feat: 对deepin-face服务进行安全加固
+
+ -- fuleyi <fuleyi@uniontech.com>  Fri, 18 Oct 2024 15:29:48 +0800
+
 deepin-face (2.0.4) unstable; urgency=medium
 
   * fix: deepin-face出现崩溃
