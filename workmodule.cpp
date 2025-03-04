@@ -5,7 +5,7 @@
 #include "workmodule.h"
 #include "modelmanger.h"
 
-#include <QCameraInfo>
+#include <QMediaDevices>
 #include <QMutex>
 #include <QMutexLocker>
 #include <QtConcurrent>
@@ -34,13 +34,12 @@ void ErollThread::Start(QString actionId, int socket)
 void ErollThread::run()
 {
     m_camera.reset();
-    auto cameras = QCameraInfo::availableCameras();
-    for (const auto &obj : qAsConst(cameras)) {
+    auto cameras = QMediaDevices::videoInputs();
+    for (const QCameraDevice &obj : cameras) {
         m_camera.reset(new QCamera(obj));
         if (m_camera->isAvailable())
             break;
     }
-
 
     if (m_camera.isNull()) {
         qDebug() << "open camera fail";
@@ -48,30 +47,27 @@ void ErollThread::run()
         return;
     }
 
-    m_camera->setCaptureMode(QCamera::CaptureStillImage);
-    m_imageCapture.reset(new QCameraImageCapture(m_camera.data()));
-    m_imageCapture->setCaptureDestination(QCameraImageCapture::CaptureToBuffer);
-    QList<QSize> supportedResolutions = m_imageCapture->supportedResolutions();
+    m_captureSession.reset(new QMediaCaptureSession);
+    m_captureSession->setCamera(m_camera.data());
+    m_imageCapture.reset(new QImageCapture);
+    m_captureSession->setImageCapture(m_imageCapture.data());
+    QList<QSize> supportedResolutions = m_camera->cameraDevice().photoResolutions();
     if (supportedResolutions.contains(QSize(800, 600))) {
-        auto settings = m_imageCapture->encodingSettings();
-        settings.setResolution(QSize(800, 600));
-        m_imageCapture->setEncodingSettings(settings);
+        m_imageCapture->setResolution(QSize(800, 600));
     }
-    connect(m_camera.data(), &QCamera::stateChanged, this, &ErollThread::updateCameraState);
-    connect(m_imageCapture.data(), &QCameraImageCapture::readyForCaptureChanged, this, &ErollThread::readyForCapture);
-    connect(m_imageCapture.data(), &QCameraImageCapture::imageCaptured, this, &ErollThread::processCapturedImage);
-    connect(m_imageCapture.data(), QOverload<int, QCameraImageCapture::Error, const QString &>::of(&QCameraImageCapture::error),
+    connect(m_imageCapture.data(), &QImageCapture::readyForCaptureChanged, this, &ErollThread::readyForCapture);
+    connect(m_imageCapture.data(), &QImageCapture::imageCaptured, this, &ErollThread::processCapturedImage);
+    connect(m_imageCapture.data(), QOverload<int, QImageCapture::Error, const QString &>::of(&QImageCapture::errorOccurred),
             this, &ErollThread::captureError);
     m_camera->start();
+    m_imageCapture->capture();
 }
 
 void ErollThread::Stop()
 {
     qDebug() << "ErollThread::Stop thread:" << QThread::currentThreadId();
-    m_imageCapture->cancelCapture();
     m_stopCapture = true;
     m_camera->stop();
-    m_camera->unload();
     m_camera.reset();
     close(m_fileSocket);
 }
@@ -116,11 +112,6 @@ void ErollThread::sendCapture(QImage &img)
     free(buf);
 }
 
-void ErollThread::updateCameraState(QCamera::State state)
-{
-    qInfo() << "updateCameraState" << state;
-}
-
 void ErollThread::readyForCapture(bool ready)
 {
     if (m_imageCapture && ready) {
@@ -129,10 +120,12 @@ void ErollThread::readyForCapture(bool ready)
     }
 }
 
-void ErollThread::captureError(int, QCameraImageCapture::Error, const QString &errorString)
+void ErollThread::captureError(int err, QImageCapture::Error, const QString &errorString)
 {
-    qDebug() << "read camera fail:" << errorString;
-    Q_EMIT processStatus(m_actionId, FaceEnrollException);
+    if (err > 0) {
+        qDebug() << "read camera fail:" << errorString;
+        Q_EMIT processStatus(m_actionId, FaceEnrollException);
+    }
     return;
 }
 
@@ -298,39 +291,33 @@ void VerifyThread::run()
 {
     qDebug() << "Verify run";
     m_camera.reset();
-    auto cameras = QCameraInfo::availableCameras();
-    for (const auto &obj : qAsConst(cameras)) {
+    auto cameras = QMediaDevices::videoInputs();
+    for (const QCameraDevice &obj : cameras) {
         m_camera.reset(new QCamera(obj));
         if (m_camera->isAvailable())
             break;
     }
+
     if (m_camera.isNull()) {
         qDebug() << "open camera fail";
         Q_EMIT processStatus(m_actionId, FaceEnrollException);
         return;
     }
 
-    m_camera->setCaptureMode(QCamera::CaptureStillImage);
-    m_imageCapture.reset(new QCameraImageCapture(m_camera.data()));
-    m_imageCapture->setCaptureDestination(QCameraImageCapture::CaptureToBuffer);
-    QList<QSize> supportedResolutions = m_imageCapture->supportedResolutions();
+    m_captureSession.reset(new QMediaCaptureSession);
+    m_captureSession->setCamera(m_camera.data());
+    m_imageCapture.reset(new QImageCapture);
+    m_captureSession->setImageCapture(m_imageCapture.data());
+    QList<QSize> supportedResolutions = m_camera->cameraDevice().photoResolutions();
     if (supportedResolutions.contains(QSize(800, 600))) {
-        auto settings = m_imageCapture->encodingSettings();
-        settings.setResolution(QSize(800, 600));
-        m_imageCapture->setEncodingSettings(settings);
+        m_imageCapture->setResolution(QSize(800, 600));
     }
 
-    connect(m_camera.data(), &QCamera::stateChanged, this, &VerifyThread::updateCameraState);
-    connect(m_imageCapture.data(), &QCameraImageCapture::readyForCaptureChanged, this, &VerifyThread::readyForCapture);
-    connect(m_imageCapture.data(), &QCameraImageCapture::imageCaptured, this, &VerifyThread::processCapturedImage);
-    connect(m_imageCapture.data(), QOverload<int, QCameraImageCapture::Error, const QString &>::of(&QCameraImageCapture::error),
+    connect(m_imageCapture.data(), &QImageCapture::readyForCaptureChanged, this, &VerifyThread::readyForCapture);
+    connect(m_imageCapture.data(), &QImageCapture::imageCaptured, this, &VerifyThread::processCapturedImage);
+    connect(m_imageCapture.data(), QOverload<int, QImageCapture::Error, const QString &>::of(&QImageCapture::errorOccurred),
             this, &VerifyThread::captureError);
     m_camera->start();
-}
-
-void VerifyThread::updateCameraState(QCamera::State state)
-{
-    qDebug() << "updateCameraState" << state;
 }
 
 void VerifyThread::readyForCapture(bool ready)
@@ -341,10 +328,12 @@ void VerifyThread::readyForCapture(bool ready)
     }
 }
 
-void VerifyThread::captureError(int, QCameraImageCapture::Error, const QString &errorString)
+void VerifyThread::captureError(int err, QImageCapture::Error, const QString &errorString)
 {
-    qDebug() << "read camera fail:" << errorString;
-    Q_EMIT processStatus(m_actionId, FaceEnrollException);
+    if (err > 0) {
+        qDebug() << "read camera fail:" << errorString;
+        Q_EMIT processStatus(m_actionId, FaceEnrollException);
+    }
     return;
 }
 
@@ -467,11 +456,9 @@ void VerifyThread::Stop()
 {
     qDebug() << "VerifyThread::Stop thread:" << QThread::currentThreadId();
 
-    m_imageCapture->cancelCapture();
     // 当关闭相机后, 会取消图片的抓取, 此时不需要去处理抓取的图片
-    disconnect(m_imageCapture.data(), &QCameraImageCapture::imageCaptured, this, &VerifyThread::processCapturedImage);
+    disconnect(m_imageCapture.data(), &QImageCapture::imageCaptured, this, &VerifyThread::processCapturedImage);
     m_camera->stop();
-    m_camera->unload();
     for (int i = 0; i < m_charaDatas.size(); i++) {
         if (m_charaDatas[i] != nullptr) {
             free(m_charaDatas[i]);
