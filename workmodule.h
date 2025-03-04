@@ -5,20 +5,22 @@
 #ifndef WORKMODULE_H
 #define WORKMODULE_H
 
-#include "qcamera.h"
+#include <QCamera>
 #include <memory>
 #include <unistd.h>
 #include <QDebug>
 #include <QImage>
 #include <QPixmap>
 #include <QThread>
-#include <QCameraImageCapture>
+#include <QImageCapture>
+#include <QMediaCaptureSession>
 
 QT_BEGIN_NAMESPACE
 class QMutex;
 QT_END_NAMESPACE
 
 class DriverManger;
+class QMediaCaptureSession;
 class ErollThread : public QObject
 {
     Q_OBJECT
@@ -39,14 +41,15 @@ protected:
 
 
 private Q_SLOTS:
-    void updateCameraState(QCamera::State state);
+    // void updateCameraState(QCamera::State state);
     void readyForCapture(bool ready);
-    void captureError(int, QCameraImageCapture::Error, const QString &errorString);
+    void captureError(int err, QImageCapture::Error, const QString &errorString);
     void processCapturedImage(int id, const QImage &preview);
 
 private:
     QScopedPointer<QCamera> m_camera;
-    QScopedPointer<QCameraImageCapture> m_imageCapture;
+    QScopedPointer<QImageCapture> m_imageCapture;
+    QScopedPointer<QMediaCaptureSession> m_captureSession;
     QString m_actionId;
     int m_fileSocket;
     bool m_bFirst;
@@ -72,14 +75,15 @@ protected:
     void run();
 
 private Q_SLOTS:
-    void updateCameraState(QCamera::State state);
+    // void updateCameraState(QCamera::State state);
     void readyForCapture(bool ready);
-    void captureError(int, QCameraImageCapture::Error, const QString &errorString);
+    void captureError(int err, QImageCapture::Error, const QString &errorString);
     void processCapturedImage(int id, const QImage &preview);
 
 private:
     QScopedPointer<QCamera> m_camera;
-    QScopedPointer<QCameraImageCapture> m_imageCapture;
+    QScopedPointer<QImageCapture> m_imageCapture;
+    QScopedPointer<QMediaCaptureSession> m_captureSession;
     QString m_actionId;
     QVector<float*> m_charaDatas;
 };
