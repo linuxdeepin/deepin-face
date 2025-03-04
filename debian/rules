@@ -1,9 +1,8 @@
 #!/usr/bin/make -f
 # See debhelper(7) (uncomment to enable)
 # output every command that modifies files on the build system.
-export DH_VERBOSE = 1
-export QT_SELECT=5
-
+export DH_VERBOSE=1
+export QT_SELECT=6 # this actually won't work but anyway :)
 
 # see FEATURE AREAS in dpkg-buildflags(1)
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
@@ -18,7 +17,16 @@ export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
 %:
 	dh $@
 
+# we are using this approach to use qmake6:
+# https://lists.debian.org/debian-qt-kde/2023/12/msg00094.html
+override_dh_auto_configure:
+	ln -s /usr/bin/qmake6 ./qmake
+	PATH=`pwd`:$(PATH) dh_auto_configure
 
 override_dh_auto_install:
 	dh_auto_install -- prefix=/usr
 	dh_installtmpfiles deepin-face.tmpfiles
+
+override_dh_auto_clean:
+	$(RM) qmake
+	dh_auto_clean

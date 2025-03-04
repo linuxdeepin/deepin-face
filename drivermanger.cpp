@@ -91,7 +91,6 @@ QDBusUnixFileDescriptor DriverManger::enrollStart(QString chara,
     QMetaObject::invokeMethod(m_spErollthread.data(),
                               "Start",
                               Qt::QueuedConnection,
-                              QGenericReturnArgument(),
                               Q_ARG(QString, actionId),
                               Q_ARG(int, fd[1]));
 
@@ -153,7 +152,6 @@ QDBusUnixFileDescriptor DriverManger::verifyStart(QStringList charas,
     QMetaObject::invokeMethod(m_spVerifyThread.data(),
                               "Start",
                               Qt::QueuedConnection,
-                              QGenericReturnArgument(),
                               Q_ARG(QString, actionId),
                               Q_ARG(QVector<float*>, faceCharas));
     return QDBusUnixFileDescriptor(0);
