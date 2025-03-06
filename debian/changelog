@@ -1,3 +1,9 @@
+deepin-face (2.0.6) unstable; urgency=medium
+
+  * fix: 修复测试机有摄像头,登录方式没有显示生物认证入口问题
+
+ -- ChengqiE <echengqi@uniontech.com>  Thu, 06 Mar 2025 19:46:55 +0800
+
 deepin-face (2.0.5) unstable; urgency=medium
 
   * feat: 对deepin-face服务进行安全加固
