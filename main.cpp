@@ -20,14 +20,22 @@ int main(int argc, char *argv[])
 
     DbusFaceService w;
     QDBusConnection connection = QDBusConnection::systemBus();
-    if (!connection.registerService(SERVERNAME)
-        || !connection.registerObject(SERVERPATH,
+      if ( !connection.registerObject(SERVERPATH,
                                       &w,
                                       QDBusConnection::ExportAllSlots
                                           | QDBusConnection::ExportScriptableProperties
                                           | QDBusConnection::ExportAllSignals)) {
-        qDebug() << "dbus service already registered!";
+        qWarning() << "dbus object registere error!";
         return -1;
     }
+ 
+    auto reply = connection.registerService(SERVERNAME);
+    if (reply != QDBusConnectionInterface::ServiceRegistered)
+    {
+        qWarning() << "dbus service registere error!";
+        /* code */
+        return -1;
+    }
+  
     return a.exec();
 }

@@ -1,5 +1,4 @@
 [D-BUS Service]
 Name=org.deepin.dde.Face1
-User=root
-Exec=/usr/libexec/deepin-face
+Exec=/bin/false
 SystemdService=deepin-face.service
