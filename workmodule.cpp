@@ -72,6 +72,7 @@ void ErollThread::Stop()
     m_stopCapture = true;
     m_camera->stop();
     m_camera->unload();
+    m_camera.reset();
     close(m_fileSocket);
 }
 
@@ -476,5 +477,6 @@ void VerifyThread::Stop()
             free(m_charaDatas[i]);
         }
     }
+    m_camera.reset();
     m_charaDatas.clear();
 }
