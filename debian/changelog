@@ -1,3 +1,10 @@
+deepin-face (2.0.7) unstable; urgency=medium
+
+  * fix: 修复人脸录入过程中,关闭窗口后,人脸设备未即时退出问题
+  * feat: Upgrade to QT6
+
+ -- Lv Peilong <lvpeilong@uniontech.com>  Wed, 19 Mar 2025 15:45:11 +0800
+
 deepin-face (2.0.6) unstable; urgency=medium
 
   * fix: 修复测试机有摄像头,登录方式没有显示生物认证入口问题
