@@ -122,7 +122,7 @@ void ErollThread::readyForCapture(bool ready)
 
 void ErollThread::captureError(int err, QImageCapture::Error, const QString &errorString)
 {
-    if (err > 0) {
+    if (m_camera->error() != QCamera::NoError) {
         qDebug() << "read camera fail:" << errorString;
         Q_EMIT processStatus(m_actionId, FaceEnrollException);
     }
@@ -330,7 +330,7 @@ void VerifyThread::readyForCapture(bool ready)
 
 void VerifyThread::captureError(int err, QImageCapture::Error, const QString &errorString)
 {
-    if (err > 0) {
+    if (m_camera->error() != QCamera::NoError) {
         qDebug() << "read camera fail:" << errorString;
         Q_EMIT processStatus(m_actionId, FaceEnrollException);
     }
