@@ -19,7 +19,7 @@ Copyright: UnionTech Software Technology Co., Ltd.
 License: CC-BY-4.0
 
 # xml toml json conf yaml
-Files: msic/dbus-conf/com.deepin.face.conf msic/deepin-face-driver.json .gitignore msic/dbus-conf/org.deepin.dde.Face1.conf
+Files: msic/dbus-conf/com.deepin.face.conf msic/deepin-face-driver.json .gitignore msic/dbus-conf/org.deepin.dde.Face1.conf msic/deepin-face.conf
  msic/dbus-services/org.deepin.dde.Face1.service
 Copyright: None
 License: CC0-1.0
