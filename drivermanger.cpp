@@ -116,13 +116,12 @@ void DriverManger::enrollStop(QString actionId, ErrMsgInfo &errMsgInfo)
             free(actionInfo.faceChara);
         }
     }
-
-    ModelManger::getSingleInstanceModel().unLoad();
-
-    QMetaObject::invokeMethod(m_spErollthread.data(),
-                              "Stop",
+    qDebug() << "start Erollthread stop";
+    QMetaObject::invokeMethod(m_spErollthread.data(), "Stop",
                               Qt::BlockingQueuedConnection);
     m_actionMap.remove(actionId);
+    ModelManger::getSingleInstanceModel().unLoad();
+    qDebug() << "ModelManger::unLoad";
     auto charaList = m_spCharaDataManger->getCharaList();
     setCharaList(charaList);
 

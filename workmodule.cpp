@@ -66,9 +66,19 @@ void ErollThread::run()
 void ErollThread::Stop()
 {
     qDebug() << "ErollThread::Stop thread:" << QThread::currentThreadId();
+    disconnect(m_imageCapture.data(), &QImageCapture::readyForCaptureChanged, this, &ErollThread::readyForCapture);
+    disconnect(m_imageCapture.data(), &QImageCapture::imageCaptured, this, &ErollThread::processCapturedImage);
+    disconnect(m_imageCapture.data(), QOverload<int, QImageCapture::Error, const QString &>::of(&QImageCapture::errorOccurred),
+            this, &ErollThread::captureError);
     m_stopCapture = true;
     m_camera->stop();
     m_camera.reset();
+    while (!m_checkDone) {
+        qDebug() << "wait check done thread:" << QThread::currentThreadId();
+        QThread::msleep(100);
+        continue;
+    }
+    qDebug() << "check done";
     close(m_fileSocket);
 }
 
@@ -104,7 +114,6 @@ void ErollThread::sendCapture(QImage &img)
     while (countSize > 0 && !m_stopCapture) {
         long sendSize = write(m_fileSocket, &buf[size - countSize], static_cast<size_t>(countSize));
         if (sendSize < 0) {
-            QCoreApplication::processEvents();
             continue;
         }
         countSize -= static_cast<unsigned long>(sendSize);
@@ -162,11 +171,12 @@ void ErollThread::processCapturedImage(int id, const QImage &preview)
 
     QFutureWatcher<void> *watcher = new QFutureWatcher<void>(this);
     connect(watcher, &QFutureWatcher<void>::finished, [this, watcher] {
-        m_checkDone = true;
         watcher->deleteLater();
     });
-    QFuture<void> future = QtConcurrent::run([=]() {
-        qDebug() << "thread id:" << QThread::currentThreadId();
+    QFuture<void> future = QtConcurrent::run([this, img]() {
+        auto guard = qScopeGuard([this]() {
+            this->m_checkDone = true; 
+        });
         QImage img1 = img.convertToFormat(QImage::Format_RGB888).rgbSwapped();
         SeetaImageData image;
         image.height = img1.height();
@@ -233,7 +243,6 @@ void ErollThread::processCapturedImage(int id, const QImage &preview)
             if (status == seeta::FaceAntiSpoofing::SPOOF) {
                 QMetaObject::invokeMethod(this, "processStatus", Qt::QueuedConnection, Q_ARG(QString, m_actionId), Q_ARG(qint32, FaceEnrollNotRealHuman));
                 return;
-
             } else {
                 qDebug() << "antispoofing ok";
             }
