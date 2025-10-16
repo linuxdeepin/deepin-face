@@ -1,3 +1,10 @@
+deepin-face (2.0.10) unstable; urgency=medium
+
+  * chore: change license from LGPL to GPL
+  * fix: improve enrollment stop sequence and thread safety
+
+ -- zhangkun <zhangkun2@uniontech.com>  Thu, 16 Oct 2025 20:49:50 +0800
+
 deepin-face (2.0.9) unstable; urgency=medium
 
   * feat: add Debian packaging configuration
