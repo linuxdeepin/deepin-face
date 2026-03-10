@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2022 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -144,10 +144,19 @@ void ErollThread::processCapturedImage(int id, const QImage &preview)
         return;
 
     QImage img;
-    if (preview.size() == QSize(800, 600))
+    if (preview.size() == QSize(800, 600)) {
         img = preview;
-    else
-        img = preview.scaled(QSize(800, 600));
+    } else {
+        const int pw = preview.width();
+        const int ph = preview.height();
+        double scale = qMax(800.0 / pw, 600.0 / ph);
+        int srcW = qRound(800.0 / scale);
+        int srcH = qRound(600.0 / scale);
+        int srcX = (pw - srcW) / 2;
+        int srcY = (ph - srcH) / 2;
+        img = preview.copy(srcX, srcY, srcW, srcH)
+                    .scaled(800, 600, Qt::IgnoreAspectRatio, Qt::FastTransformation);
+    }
 
     if (1 == id) {
         sendCapture(img);
