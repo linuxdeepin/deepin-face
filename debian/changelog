@@ -1,3 +1,9 @@
+deepin-face (2.0.11) unstable; urgency=medium
+
+  * chore: update copyright year and improve image scaling
+
+ -- zhangkun <zhangkun2@uniontech.com>  Wed, 18 Mar 2026 14:17:18 +0800
+
 deepin-face (2.0.10) unstable; urgency=medium
 
   * chore: change license from LGPL to GPL
