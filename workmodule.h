@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2022 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -6,6 +6,7 @@
 #define WORKMODULE_H
 
 #include <QCamera>
+#include <atomic>
 #include <memory>
 #include <unistd.h>
 #include <QDebug>
@@ -46,6 +47,9 @@ private Q_SLOTS:
     void captureError(int err, QImageCapture::Error, const QString &errorString);
     void processCapturedImage(int id, const QImage &preview);
 
+public:
+    std::atomic<bool> m_stopCapture;
+
 private:
     QScopedPointer<QCamera> m_camera;
     QScopedPointer<QImageCapture> m_imageCapture;
@@ -53,7 +57,6 @@ private:
     QString m_actionId;
     int m_fileSocket;
     bool m_bFirst;
-    bool m_stopCapture;
     bool m_checkDone;
 };
 

@@ -111,11 +111,22 @@ void ErollThread::sendCapture(QImage &img)
     }
 
     unsigned long countSize = size;
+    int retryCount = 0;
     while (countSize > 0 && !m_stopCapture) {
         long sendSize = write(m_fileSocket, &buf[size - countSize], static_cast<size_t>(countSize));
         if (sendSize < 0) {
-            continue;
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                retryCount++;
+                if (retryCount > 100) {
+                    break;
+                }
+                QThread::msleep(1);
+                continue;
+            }
+            qWarning() << "write error:" << strerror(errno);
+            break;
         }
+        retryCount = 0;
         countSize -= static_cast<unsigned long>(sendSize);
     }
     free(buf);

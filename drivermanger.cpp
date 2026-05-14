@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2022 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -117,6 +117,7 @@ void DriverManger::enrollStop(QString actionId, ErrMsgInfo &errMsgInfo)
         }
     }
     qDebug() << "start Erollthread stop";
+    m_spErollthread->m_stopCapture = true;
     QMetaObject::invokeMethod(m_spErollthread.data(), "Stop",
                               Qt::BlockingQueuedConnection);
     m_actionMap.remove(actionId);
