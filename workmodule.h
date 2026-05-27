@@ -58,6 +58,7 @@ private:
     int m_fileSocket;
     bool m_bFirst;
     bool m_checkDone;
+    std::atomic<int> m_nullCount;
 };
 
 
