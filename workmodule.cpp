@@ -18,6 +18,7 @@ ErollThread::ErollThread(QObject *parent)
     , m_bFirst(false)
     , m_stopCapture(false)
     , m_checkDone(true)
+    , m_nullCount(0)
 {
 }
 
@@ -25,6 +26,7 @@ void ErollThread::Start(QString actionId, int socket)
 {
     qDebug() << "ErollThread::Start thread:" << QThread::currentThreadId();
     m_stopCapture = false;
+    m_nullCount = 0;
     m_actionId = actionId;
     m_fileSocket = socket;
     m_bFirst = true;
@@ -134,9 +136,9 @@ void ErollThread::sendCapture(QImage &img)
 
 void ErollThread::readyForCapture(bool ready)
 {
-    if (m_imageCapture && ready) {
+    if (m_imageCapture && ready && !m_stopCapture) {
         m_imageCapture->capture();
-        qInfo() << "ErollThread::readyForCapture";
+        qDebug() << "ErollThread::readyForCapture";
     }
 }
 
@@ -151,8 +153,27 @@ void ErollThread::captureError(int err, QImageCapture::Error, const QString &err
 
 void ErollThread::processCapturedImage(int id, const QImage &preview)
 {
-    if (m_stopCapture)
+    if (m_stopCapture) {
+        m_nullCount = 0;
         return;
+    }
+
+    if (preview.isNull()) {
+        if (++m_nullCount > 10) {
+            qWarning() << "captured image is null too many times, aborting";
+            m_nullCount = 0;
+            Q_EMIT processStatus(m_actionId, FaceEnrollException);
+            return;
+        }
+        qWarning() << "captured image is null, retrying capture";
+        QThread::msleep(100);
+        if (m_stopCapture)
+            return;
+        m_imageCapture->capture();
+        return;
+    }
+
+    m_nullCount = 0;
 
     QImage img;
     if (preview.size() == QSize(800, 600)) {
@@ -169,7 +190,7 @@ void ErollThread::processCapturedImage(int id, const QImage &preview)
                     .scaled(800, 600, Qt::IgnoreAspectRatio, Qt::FastTransformation);
     }
 
-    if (1 == id) {
+    if (m_bFirst) {
         sendCapture(img);
         m_bFirst = false;
     } else {
@@ -179,7 +200,6 @@ void ErollThread::processCapturedImage(int id, const QImage &preview)
         }
         sendCapture(img);
     }
-
 
     m_imageCapture->capture();
 
