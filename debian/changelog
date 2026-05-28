@@ -1,3 +1,9 @@
+deepin-face (20260528144228) unstable; urgency=medium
+
+  * fix: prevent capture stuck on null images
+
+ -- zhangkun <zhangkun2@uniontech.com>  Thu, 28 May 2026 14:42:31 +0800
+
 deepin-face (2.0.12) unstable; urgency=medium
 
   * fix: resolve face enrollment freeze issue
