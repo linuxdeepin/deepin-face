@@ -1,3 +1,9 @@
+deepin-face (2.0.14) unstable; urgency=medium
+
+  * fix: 收紧 DBus policy 限制普通用户直接调用 Face1 敏感接口
+
+ -- zhangkun <zhangkun2@uniontech.com>  Thu, 11 Jun 2026 19:30:04 +0800
+
 deepin-face (2.0.13) unstable; urgency=medium
 
   * fix: prevent capture stuck on null images
