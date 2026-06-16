@@ -16,7 +16,10 @@ ProtectSystem=strict
 #ReadOnlyPaths=/usr/share/seetaface-models/
 ReadWritePaths=/var/log/deepin-face.log
 
-DeviceAllow=char-video4linux
+DeviceAllow=char-video4linux rw
+DeviceAllow=char-media rw
+DeviceAllow=char-drm rw
+DeviceAllow=/dev/vpu0 rw
 DevicePolicy=closed
 
 NoNewPrivileges=yes
