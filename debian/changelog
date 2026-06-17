@@ -1,3 +1,9 @@
+deepin-face (2.0.15) unstable; urgency=medium
+
+  * chore: update device permissions for systemd service
+
+ -- zhangkun <zhangkun2@uniontech.com>  Wed, 17 Jun 2026 16:17:11 +0800
+
 deepin-face (2.0.14) unstable; urgency=medium
 
   * fix: 收紧 DBus policy 限制普通用户直接调用 Face1 敏感接口
