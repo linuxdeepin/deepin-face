@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2022 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -17,7 +17,6 @@
 #include "seeta/QualityOfPoseEx.h"
 #include "workmodule.h"
 
-#include <QFileSystemWatcher>
 #include <QSharedPointer>
 #include <QtDBus/QtDBus>
 
@@ -29,6 +28,7 @@ struct ActionInfo {
     ActionType actionType;
     float *faceChara;
     int size;
+    bool cameraNotEnabledReported = false; // “摄像头未开启”是否已上报（DConfig 事件与看门狗去重）
 };
 
 struct ErrMsgInfo {
@@ -64,13 +64,11 @@ public:
     QStringList getCharaList();
     void setCharaList(QStringList lCharaList);
 
-private Q_SLOTS:
-    void onDirectoryChanged(const QString &path);
-
 private:
     QString getStatusMsg(ActionType actionType, qint32 status);
     void emitPropertiesChanged(QVariantMap &qVariantMap);
     void emitStatus(ActionType action, QString actionId, qint32 status, QString msg);
+    void initCameraPrivacyWatch();
 
 private:
     QSharedPointer<ErollThread> m_spErollthread;
@@ -80,7 +78,6 @@ private:
     bool m_bClaim; //是否被占用
     qint32 m_charaType;
     QStringList m_charalist;
-    QSharedPointer<QFileSystemWatcher> m_spFileWatch;
     QThread *m_eroll;
     QThread *m_verify;
 };

@@ -7,6 +7,10 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
+#include <DConfig>
+
+DCORE_USE_NAMESPACE
+
 DriverManger::DriverManger()
     : m_spCharaDataManger(new CharaDataManger)
     , m_eroll(new QThread(this))
@@ -23,22 +27,17 @@ DriverManger::~DriverManger()
 }
 void DriverManger::init()
 {
-    m_spFileWatch = QSharedPointer<QFileSystemWatcher>(new QFileSystemWatcher(this));
     m_spErollthread = QSharedPointer<ErollThread>(new ErollThread());
     m_spVerifyThread = QSharedPointer<VerifyThread>(new VerifyThread());
     m_spCharaDataManger->loadCharaData();
+    // 监听相机隐私开关（dde-system-daemon 的 DConfig）：FN 键/接口关闭摄像头时
+    // 第一时间结束正在进行的录入/验证，无需等看门狗轮询或设备从 Qt 列表消失
+    initCameraPrivacyWatch();
     m_bClaim = false;
     m_charalist = this->m_spCharaDataManger->getCharaList();
+    // 人脸能力与摄像头开关状态解耦：摄像头 FN 键关闭（设备消失）时仍上报人脸能力，
+    // 由控制中心始终展示生物认证（人脸）入口，实际操作时再上报摄像头未开启。
     m_charaType = FACECHARATYPE;
-    m_spFileWatch->addPath("/dev/");
-
-    // 暂不支持热插拔
-    connect(m_spFileWatch.get(),
-            &QFileSystemWatcher::directoryChanged,
-            this,
-            &DriverManger::onDirectoryChanged);
-
-    onDirectoryChanged("/dev/");
     m_spErollthread->moveToThread(m_eroll);
     m_spVerifyThread->moveToThread(m_verify);
     connect(m_spErollthread.data(), &ErollThread::processStatus, this, &DriverManger::processStatus);
@@ -46,6 +45,37 @@ void DriverManger::init()
     m_eroll->start();
     m_verify->start();
     qDebug() << "DriverManger::init thread:" << QThread::currentThreadId();
+}
+
+// 监听 dde-system-daemon 持久化的相机隐私开关（SetCameraPrivacy 写入的
+// org.deepin.dde.daemon / org.deepin.dde.daemon.system / cameraPrivacyEnabled）。
+// 开关打开时立即按“摄像头未开启”结束当前操作；DConfig 不可用（旧版本系统）时
+// 静默跳过，仍由 GetCameraPrivacy 查询与运行期看门狗兜底。
+void DriverManger::initCameraPrivacyWatch()
+{
+    auto *config = DConfig::create(QStringLiteral("org.deepin.dde.daemon"),
+                                   QStringLiteral("org.deepin.dde.daemon.system"),
+                                   QString(), this);
+    if (!config || !config->isValid()) {
+        qWarning() << "camera privacy dconfig unavailable, fallback to watchdog";
+        return;
+    }
+
+    connect(config, &DConfig::valueChanged, this, [this, config](const QString &key) {
+        if (key != QStringLiteral("cameraPrivacyEnabled"))
+            return;
+        if (!config->value(key).toBool())
+            return;
+
+        qWarning() << "camera privacy switch on, abort active face action";
+        const auto actionIds = m_actionMap.keys();
+        for (const auto &actionId : actionIds) {
+            const auto actionType = m_actionMap.value(actionId).actionType;
+            const qint32 status = (actionType == Enroll) ? FaceEnrollCameraNotEnabled
+                                                         : FaceVerifyCameraNotEnabled;
+            processStatus(actionId, status);
+        }
+    });
 }
 
 QDBusUnixFileDescriptor DriverManger::enrollStart(QString chara,
@@ -236,6 +266,14 @@ void DriverManger::processStatus(QString actionId, qint32 status, float *faceCha
         return;
     }
     auto &actionInfo = m_actionMap[actionId];
+    // DConfig 开关事件、看门狗与设备检测可能同时上报“摄像头未开启”，
+    // 每个操作只上报一次，避免重复结束同一操作
+    if (status == FaceEnrollCameraNotEnabled || status == FaceVerifyCameraNotEnabled) {
+        if (actionInfo.cameraNotEnabledReported) {
+            return;
+        }
+        actionInfo.cameraNotEnabledReported = true;
+    }
     actionInfo.status = status;
     if (faceChara != nullptr) {
         actionInfo.faceChara = static_cast<float *>(
@@ -279,34 +317,6 @@ void DriverManger::emitPropertiesChanged(QVariantMap &qChangedProps)
     QStringList invalidatedProps;
     signal << invalidatedProps;
     QDBusConnection::systemBus().send(signal);
-}
-
-void DriverManger::onDirectoryChanged(const QString &path)
-{
-    qDebug() << "HandleFileChanged" << path;
-
-    QDir dir(path);
-    if (!dir.exists()) {
-        qDebug() << "dir " << path << "not exist";
-        return;
-    }
-
-    //获取filePath下所有系统文件
-    dir.setFilter(QDir::System);
-    QFileInfoList filelist = dir.entryInfoList();
-    bool bFound = false;
-    for (int i = 0; i < filelist.size(); i++) {
-        if (filelist[i].fileName().contains("video")) {
-            bFound = true;
-            break;
-        }
-    }
-
-    if (bFound) {
-        setCharaType(FACECHARATYPE);
-    } else {
-        setCharaType(EMPTYCHARATYPE);
-    }
 }
 
 QString DriverManger::getStatusMsg(ActionType actionType, qint32 status)
@@ -354,6 +364,9 @@ QString DriverManger::getStatusMsg(ActionType actionType, qint32 status)
         case FaceEnrollException:
             retMsg = "Enroll Exception";
             break;
+        case FaceEnrollCameraNotEnabled:
+            retMsg = "Enroll Camera Not Enabled";
+            break;
         }
     } else if (actionType == Verify) {
         VerifyStatus tempStatus = VerifyStatus(status);
@@ -396,6 +409,9 @@ QString DriverManger::getStatusMsg(ActionType actionType, qint32 status)
             break;
         case FaceVerifyException:
             retMsg = "Verify Exception";
+            break;
+        case FaceVerifyCameraNotEnabled:
+            retMsg = "Verify Camera Not Enabled";
             break;
         }
     }
