@@ -1,3 +1,11 @@
+deepin-face (2.0.17) unstable; urgency=medium
+
+  * fix(CI): broken cppcheck
+  * fix: report camera-not-enabled status and keep the face entry
+    visible (#59)
+
+ -- zhangkun <zhangkun2@uniontech.com>  Mon, 12 Oct 2026 18:19:18 +0800
+
 deepin-face (2.0.16) unstable; urgency=medium
 
   * chore: Sync by
