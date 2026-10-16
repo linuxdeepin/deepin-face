@@ -1,3 +1,10 @@
+deepin-face (2.0.18) unstable; urgency=medium
+
+  * Revert "fix: report camera-not-enabled status and keep the face
+    entry visible (#59)" (#63)
+
+ -- zhangkun <zhangkun2@uniontech.com>  Fri, 16 Oct 2026 17:56:00 +0800
+
 deepin-face (2.0.17) unstable; urgency=medium
 
   * fix(CI): broken cppcheck
