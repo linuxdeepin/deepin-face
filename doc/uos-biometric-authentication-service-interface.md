@@ -101,9 +101,7 @@ UOS 并不关心实际上的生物特征数据内容，服务程序计算得出�
       FaceEnrollFaceCovered,
       FaceEnrollCancel,
       FaceEnrollError, // 认证失败
-      FaceEnrollException, // 发生错误
-      // 13/14 由 deepin-authentication 内部使用（厂商断开/发起方断开）
-      FaceEnrollCameraNotEnabled = 15 // 摄像头未开启
+      FaceEnrollException // 发生错误
   };
   ```
 
@@ -127,9 +125,7 @@ UOS 并不关心实际上的生物特征数据内容，服务程序计算得出�
     FaceVerifyFaceCovered,
     FaceVerifyCancel,
     FaceVerifyError,
-    FaceVerifyException,
-    // 13/14 由 deepin-authentication 内部使用（厂商断开/发起方断开）
-    FaceVerifyCameraNotEnabled = 15 // 摄像头未开启
+    FaceVerifyException
   };
   ```
 

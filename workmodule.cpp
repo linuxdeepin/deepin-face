@@ -5,41 +5,10 @@
 #include "workmodule.h"
 #include "modelmanger.h"
 
-#include <QDBusConnection>
-#include <QDBusMessage>
 #include <QMediaDevices>
 #include <QMutex>
 #include <QMutexLocker>
-#include <QTimer>
 #include <QtConcurrent>
-
-// dde-system-daemon 提供的相机隐私开关查询接口（System Bus）
-#define CAMERA_PRIVACY_SERVICE "org.deepin.dde.Daemon1"
-#define CAMERA_PRIVACY_PATH "/org/deepin/dde/Daemon1"
-#define CAMERA_PRIVACY_INTERFACE "org.deepin.dde.Daemon1"
-
-// 查询相机隐私开关的真实硬件/驱动状态。DConfig 事件用于快速感知开关变化，
-// 这里用于关键点的事实校验：V4L2 遮挡形态下设备节点仍在，仅凭设备状态判断不出“被开关关闭”。
-// 在工作线程中做短超时阻塞调用；旧版本 dde-daemon 无此接口时快速失败，由调用方回退。
-bool queryCameraPrivacy(bool *known)
-{
-    if (known) {
-        *known = false;
-    }
-
-    QDBusMessage msg = QDBusMessage::createMethodCall(QStringLiteral(CAMERA_PRIVACY_SERVICE),
-                                                      QStringLiteral(CAMERA_PRIVACY_PATH),
-                                                      QStringLiteral(CAMERA_PRIVACY_INTERFACE),
-                                                      QStringLiteral("GetCameraPrivacy"));
-    const QDBusMessage reply = QDBusConnection::systemBus().call(msg, QDBus::Block, 1000);
-    if (reply.type() != QDBusMessage::ReplyMessage || reply.arguments().size() < 2) {
-        return false;
-    }
-    if (known) {
-        *known = reply.arguments().at(1).toBool();
-    }
-    return reply.arguments().at(0).toBool();
-}
 
 
 ErollThread::ErollThread(QObject *parent)
@@ -61,37 +30,22 @@ void ErollThread::Start(QString actionId, int socket)
     m_actionId = actionId;
     m_fileSocket = socket;
     m_bFirst = true;
-    if (m_cameraWatchTimer == nullptr) {
-        m_cameraWatchTimer = new QTimer(this);
-        m_cameraWatchTimer->setInterval(1000);
-        connect(m_cameraWatchTimer, &QTimer::timeout, this, &ErollThread::checkCameraAvailable);
-    }
     run();
 }
 
 void ErollThread::run()
 {
     m_camera.reset();
-    m_cameraDevice = QCameraDevice();
-    bool foundAvailable = false;
     auto cameras = QMediaDevices::videoInputs();
     for (const QCameraDevice &obj : cameras) {
         m_camera.reset(new QCamera(obj));
-        if (m_camera->isAvailable()) {
-            m_cameraDevice = obj;
-            foundAvailable = true;
+        if (m_camera->isAvailable())
             break;
-        }
     }
 
-    if (m_camera.isNull() || !foundAvailable) {
-        // 隐私开关打开时设备会消失；查一次开关状态便于区分“开关关闭”与“无相机设备”
-        bool privacyKnown = false;
-        const bool privacyOn = queryCameraPrivacy(&privacyKnown);
-        qDebug() << "open camera fail: no available camera device, privacyOn:" << privacyOn
-                 << "privacyKnown:" << privacyKnown;
-        // 摄像头开关关闭/未开启或没有可用设备时，上报专用状态码，由调用方提示“未开启摄像头”
-        Q_EMIT processStatus(m_actionId, FaceEnrollCameraNotEnabled);
+    if (m_camera.isNull()) {
+        qDebug() << "open camera fail";
+        Q_EMIT processStatus(m_actionId, FaceEnrollException);
         return;
     }
 
@@ -109,26 +63,17 @@ void ErollThread::run()
             this, &ErollThread::captureError);
     m_camera->start();
     m_imageCapture->capture();
-    m_cameraWatchTimer->start();
 }
 
 void ErollThread::Stop()
 {
     qDebug() << "ErollThread::Stop thread:" << QThread::currentThreadId();
-    if (m_cameraWatchTimer) {
-        m_cameraWatchTimer->stop();
-    }
-    if (!m_imageCapture.isNull()) {
-        disconnect(m_imageCapture.data(), &QImageCapture::readyForCaptureChanged, this, &ErollThread::readyForCapture);
-        disconnect(m_imageCapture.data(), &QImageCapture::imageCaptured, this, &ErollThread::processCapturedImage);
-        disconnect(m_imageCapture.data(), QOverload<int, QImageCapture::Error, const QString &>::of(&QImageCapture::errorOccurred),
-                this, &ErollThread::captureError);
-    }
+    disconnect(m_imageCapture.data(), &QImageCapture::readyForCaptureChanged, this, &ErollThread::readyForCapture);
+    disconnect(m_imageCapture.data(), &QImageCapture::imageCaptured, this, &ErollThread::processCapturedImage);
+    disconnect(m_imageCapture.data(), QOverload<int, QImageCapture::Error, const QString &>::of(&QImageCapture::errorOccurred),
+            this, &ErollThread::captureError);
     m_stopCapture = true;
-    // 摄像头未打开成功时 m_camera 可能为空，直接返回
-    if (!m_camera.isNull()) {
-        m_camera->stop();
-    }
+    m_camera->stop();
     m_camera.reset();
     while (!m_checkDone) {
         qDebug() << "wait check done thread:" << QThread::currentThreadId();
@@ -199,64 +144,11 @@ void ErollThread::readyForCapture(bool ready)
 
 void ErollThread::captureError(int err, QImageCapture::Error, const QString &errorString)
 {
-    if (m_camera.isNull())
-        return;
     if (m_camera->error() != QCamera::NoError) {
         qDebug() << "read camera fail:" << errorString;
-        // 隐私开关关闭摄像头或本次选中的摄像头已不可用时按“未开启摄像头”上报；
-        // 其余场景（如被其他应用占用）仍按录入异常处理
-        bool privacyKnown = false;
-        const bool privacyOn = queryCameraPrivacy(&privacyKnown);
-        if ((privacyOn && privacyKnown) || isCameraUnavailable()) {
-            Q_EMIT processStatus(m_actionId, FaceEnrollCameraNotEnabled);
-        } else {
-            Q_EMIT processStatus(m_actionId, FaceEnrollException);
-        }
+        Q_EMIT processStatus(m_actionId, FaceEnrollException);
     }
     return;
-}
-
-// 判断本次操作选中的摄像头是否已不可用（被移除或已不可用）
-bool ErollThread::isCameraUnavailable()
-{
-    if (m_camera.isNull() || m_cameraDevice.isNull())
-        return true;
-
-    const auto cameras = QMediaDevices::videoInputs();
-    for (const auto &dev : cameras) {
-        if (dev.id() == m_cameraDevice.id())
-            return !m_camera->isAvailable();
-    }
-    return true;
-}
-
-// 摄像头被开关关闭（设备消失）后，Qt 后端可能既不报错也不回调，导致录入/验证静默卡住，
-// 由运行期看门狗兜底检测并上报“摄像头未开启”
-void ErollThread::checkCameraAvailable()
-{
-    if (m_stopCapture)
-        return;
-
-    // 先查隐私开关：V4L2 遮挡形态下设备节点仍在，Qt 仍视作可用，仅看设备状态无法发现
-    bool privacyKnown = false;
-    const bool privacyOn = queryCameraPrivacy(&privacyKnown);
-    if (privacyOn && privacyKnown) {
-        qWarning() << "camera privacy switch on during enroll";
-        if (m_cameraWatchTimer) {
-            m_cameraWatchTimer->stop();
-        }
-        Q_EMIT processStatus(m_actionId, FaceEnrollCameraNotEnabled);
-        return;
-    }
-
-    if (!isCameraUnavailable())
-        return;
-
-    qWarning() << "camera device unavailable during enroll";
-    if (m_cameraWatchTimer) {
-        m_cameraWatchTimer->stop();
-    }
-    Q_EMIT processStatus(m_actionId, FaceEnrollCameraNotEnabled);
 }
 
 void ErollThread::processCapturedImage(int id, const QImage &preview)
@@ -440,11 +332,6 @@ void VerifyThread::Start(QString actionId, QVector<float*> charas)
     m_charaDatas.clear();
     qDebug() << "charas size" << charas.size();
     m_charaDatas = charas;
-    if (m_cameraWatchTimer == nullptr) {
-        m_cameraWatchTimer = new QTimer(this);
-        m_cameraWatchTimer->setInterval(1000);
-        connect(m_cameraWatchTimer, &QTimer::timeout, this, &VerifyThread::checkCameraAvailable);
-    }
 
     run();
 }
@@ -453,26 +340,16 @@ void VerifyThread::run()
 {
     qDebug() << "Verify run";
     m_camera.reset();
-    m_cameraDevice = QCameraDevice();
-    bool foundAvailable = false;
     auto cameras = QMediaDevices::videoInputs();
     for (const QCameraDevice &obj : cameras) {
         m_camera.reset(new QCamera(obj));
-        if (m_camera->isAvailable()) {
-            m_cameraDevice = obj;
-            foundAvailable = true;
+        if (m_camera->isAvailable())
             break;
-        }
     }
 
-    if (m_camera.isNull() || !foundAvailable) {
-        // 隐私开关打开时设备会消失；查一次开关状态便于区分“开关关闭”与“无相机设备”
-        bool privacyKnown = false;
-        const bool privacyOn = queryCameraPrivacy(&privacyKnown);
-        qDebug() << "open camera fail: no available camera device, privacyOn:" << privacyOn
-                 << "privacyKnown:" << privacyKnown;
-        // 摄像头开关关闭/未开启或没有可用设备时，上报专用状态码，由调用方提示“未开启摄像头”
-        Q_EMIT processStatus(m_actionId, FaceVerifyCameraNotEnabled);
+    if (m_camera.isNull()) {
+        qDebug() << "open camera fail";
+        Q_EMIT processStatus(m_actionId, FaceEnrollException);
         return;
     }
 
@@ -490,7 +367,6 @@ void VerifyThread::run()
     connect(m_imageCapture.data(), QOverload<int, QImageCapture::Error, const QString &>::of(&QImageCapture::errorOccurred),
             this, &VerifyThread::captureError);
     m_camera->start();
-    m_cameraWatchTimer->start();
 }
 
 void VerifyThread::readyForCapture(bool ready)
@@ -503,60 +379,11 @@ void VerifyThread::readyForCapture(bool ready)
 
 void VerifyThread::captureError(int err, QImageCapture::Error, const QString &errorString)
 {
-    if (m_camera.isNull())
-        return;
     if (m_camera->error() != QCamera::NoError) {
         qDebug() << "read camera fail:" << errorString;
-        // 隐私开关关闭摄像头或本次选中的摄像头已不可用时按“未开启摄像头”上报；
-        // 其余场景（如被其他应用占用）仍按验证异常处理
-        bool privacyKnown = false;
-        const bool privacyOn = queryCameraPrivacy(&privacyKnown);
-        if ((privacyOn && privacyKnown) || isCameraUnavailable()) {
-            Q_EMIT processStatus(m_actionId, FaceVerifyCameraNotEnabled);
-        } else {
-            Q_EMIT processStatus(m_actionId, FaceVerifyException);
-        }
+        Q_EMIT processStatus(m_actionId, FaceEnrollException);
     }
     return;
-}
-
-// 判断本次操作选中的摄像头是否已不可用（被移除或已不可用）
-bool VerifyThread::isCameraUnavailable()
-{
-    if (m_camera.isNull() || m_cameraDevice.isNull())
-        return true;
-
-    const auto cameras = QMediaDevices::videoInputs();
-    for (const auto &dev : cameras) {
-        if (dev.id() == m_cameraDevice.id())
-            return !m_camera->isAvailable();
-    }
-    return true;
-}
-
-// 与 ErollThread 相同：设备消失后 Qt 后端可能既不报错也不回调，看门狗兜底上报
-void VerifyThread::checkCameraAvailable()
-{
-    // 先查隐私开关：V4L2 遮挡形态下设备节点仍在，Qt 仍视作可用，仅看设备状态无法发现
-    bool privacyKnown = false;
-    const bool privacyOn = queryCameraPrivacy(&privacyKnown);
-    if (privacyOn && privacyKnown) {
-        qWarning() << "camera privacy switch on during verify";
-        if (m_cameraWatchTimer) {
-            m_cameraWatchTimer->stop();
-        }
-        Q_EMIT processStatus(m_actionId, FaceVerifyCameraNotEnabled);
-        return;
-    }
-
-    if (!isCameraUnavailable())
-        return;
-
-    qWarning() << "camera device unavailable during verify";
-    if (m_cameraWatchTimer) {
-        m_cameraWatchTimer->stop();
-    }
-    Q_EMIT processStatus(m_actionId, FaceVerifyCameraNotEnabled);
 }
 
 void VerifyThread::processCapturedImage(int id, const QImage &preview)
@@ -678,21 +505,9 @@ void VerifyThread::Stop()
 {
     qDebug() << "VerifyThread::Stop thread:" << QThread::currentThreadId();
 
-    if (m_cameraWatchTimer) {
-        m_cameraWatchTimer->stop();
-    }
-    // 当关闭相机后, 会取消图片的抓取, 此时不需要去处理抓取的图片;
-    // 在停止/释放摄像头前断开全部采集回调, 避免延迟到达的错误回调访问空摄像头
-    if (!m_imageCapture.isNull()) {
-        disconnect(m_imageCapture.data(), &QImageCapture::readyForCaptureChanged, this, &VerifyThread::readyForCapture);
-        disconnect(m_imageCapture.data(), &QImageCapture::imageCaptured, this, &VerifyThread::processCapturedImage);
-        disconnect(m_imageCapture.data(), QOverload<int, QImageCapture::Error, const QString &>::of(&QImageCapture::errorOccurred),
-                this, &VerifyThread::captureError);
-    }
-    // 摄像头未打开成功时 m_camera 可能为空，直接返回
-    if (!m_camera.isNull()) {
-        m_camera->stop();
-    }
+    // 当关闭相机后, 会取消图片的抓取, 此时不需要去处理抓取的图片
+    disconnect(m_imageCapture.data(), &QImageCapture::imageCaptured, this, &VerifyThread::processCapturedImage);
+    m_camera->stop();
     for (int i = 0; i < m_charaDatas.size(); i++) {
         if (m_charaDatas[i] != nullptr) {
             free(m_charaDatas[i]);

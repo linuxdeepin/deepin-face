@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 - 2026 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2022 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -31,10 +31,7 @@ enum EnrollStatus {
     FaceEnrollFaceCovered,
     FaceEnrollCancel,
     FaceEnrollError,
-    FaceEnrollException = 12,
-    // 13/14 由 deepin-authentication 内部使用（厂商断开/发起方断开），
-    // 因此摄像头未开启从 15 开始编号
-    FaceEnrollCameraNotEnabled = 15 // 摄像头未开启
+    FaceEnrollException
 };
 
 enum VerifyStatus {
@@ -50,10 +47,7 @@ enum VerifyStatus {
     FaceVerifyFaceCovered,
     FaceVerifyCancel,
     FaceVerifyError,
-    FaceVerifyException = 12,
-    // 13/14 由 deepin-authentication 内部使用（厂商断开/发起方断开），
-    // 因此摄像头未开启从 15 开始编号
-    FaceVerifyCameraNotEnabled = 15 // 摄像头未开启
+    FaceVerifyException
 };
 
 #endif // DEFINEHEAD_H
