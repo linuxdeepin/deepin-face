@@ -71,12 +71,21 @@ void CharaDataManger::loadCharaData()
             jsonArray = charaObject.value("faceChara").toArray();
         }
 
+        int allocSize = qMax(faceSize, jsonArray.size());
+        if (allocSize <= 0) {
+            qWarning() << "Invalid face data size, skipping:" << chara;
+            continue;
+        }
         float *faceChara = static_cast<float *>(
-                               malloc(sizeof(float) * static_cast<unsigned long>(faceSize)));
-        for (int i = 0; i < jsonArray.size(); i++) {
+                               malloc(sizeof(float) * static_cast<unsigned long>(allocSize)));
+        if (faceChara == nullptr) {
+            qWarning() << "Failed to allocate face data, skipping:" << chara;
+            continue;
+        }
+        for (int i = 0; i < jsonArray.size() && i < allocSize; i++) {
             faceChara[i] = jsonArray[i].toString().toFloat();
         }
-        m_charaData[chara] = QPair<int, float *>(faceSize, faceChara);
+        m_charaData[chara] = QPair<int, float *>(allocSize, faceChara);
     }
 }
 
